@@ -1,0 +1,26 @@
+kind: Model
+api_version: v1beta1
+metadata:
+  display_name: UDM-HEAT
+  name: udm-heat
+  summary: Tool for converting UDM outputs to 12Km RCM grid
+  publisher: Newcastle University
+  source_code: https://github.com/OpenCLIM/udm-heat
+  description: >
+    Convert UDM gridded 1km outputs to 12km RCM grid with SUM method.
+spec:
+  inputs:
+    parameters:
+    dataslots:
+      - name: Input data files
+        description:
+        path: inputs/layers
+        required: true
+        default:
+          - 129f9361-b2ed-460f-a44b-9eeaf00b769c
+
+  outputs:
+    datasets:
+      - name: outputs/*.asc
+        type: folder
+        description: path to processed data outputs

@@ -22,12 +22,12 @@ for file in files:
 
 #get list of input files to loop through
 
-files = [f for f in listdir(join(data_path,'inputs')) if isfile(join(data_path,'inputs',f))]
+files = [f for f in listdir(join(data_path,'inputs','layers')) if isfile(join(data_path,'inputs','layers',f))]
 print('files to loop through')
 
 for file in files:
     print(file)
     file_name = file.split('.')[0]
-    subprocess.run(["gdalwarp", "-te", "0", "12000", "660000", "1212000", "-tr", "12000", "12000", "-r", "sum", join(data_path,'inputs', file), join(data_path, 'temp','%s-%s.vrt'%(file_name,'temp') )])
+    subprocess.run(["gdalwarp", "-te", "0", "12000", "660000", "1212000", "-tr", "12000", "12000", "-r", "sum", join(data_path,'inputs', 'layers', file), join(data_path, 'temp','%s-%s.vrt'%(file_name,'temp') )])
 
     subprocess.run(["gdal_translate", "-of", "AAIGrid",join(data_path,"temp","%s-%s.vrt"%(file_name,'temp')), join(data_path,"outputs","gb-2017-detached-dph-12km-sum.asc")]) 
