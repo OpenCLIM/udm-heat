@@ -30,4 +30,4 @@ for file in files:
     file_name = file.split('.')[0]
     subprocess.run(["gdalwarp", "-te", "0", "12000", "660000", "1212000", "-tr", "12000", "12000", "-r", "sum", join(data_path,'inputs', 'layers', file), join(data_path, 'temp','%s-%s.vrt'%(file_name,'temp') )])
 
-    subprocess.run(["gdal_translate", "-of", "AAIGrid",join(data_path,"temp","%s-%s.vrt"%(file_name,'temp')), join(data_path,"outputs","gb-2017-detached-dph-12km-sum.asc")]) 
+    subprocess.run(["gdal_translate", "-of", "AAIGrid",join(data_path,"temp","%s-%s.vrt"%(file_name,'temp')), join(data_path,"outputs","%s-12km-sum.asc"%file_name)])

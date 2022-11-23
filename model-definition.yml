@@ -10,10 +10,9 @@ metadata:
     Convert UDM gridded 1km outputs to 12km RCM grid with SUM method.
 spec:
   inputs:
-    parameters:
     dataslots:
       - name: Input data files
-        description:
+        description: A single, or set of, .asc files output from the UDM model
         path: inputs/layers
         required: true
         default:
