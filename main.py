@@ -1,11 +1,53 @@
 # import required libraries
 import subprocess
 from os.path import isfile, join, isdir
-from os import listdir, remove, getenv, mkdir
-from rasterstats import zonal_stats
+from os import listdir, walk, remove, getenv, mkdir
+#from rasterstats import zonal_stats
 import geopandas as gpd
 import pandas as pd
 import rasterio
+
+
+def find_metadata_files():
+    """
+    Search all directories for any metadata files (metadat.csv)
+    """
+
+    suitable_extension_types = ['csv','']
+
+    files_ = []
+
+    for root, dirs, files in walk('/data/inputs'):
+        print(root, files)
+        for file in files:
+
+            # check if extension acceptable
+            extension = file.split('.')[-1]
+            print('checking extension of:', file)
+            if extension in suitable_extension_types:
+                # check if metadata text in file name
+                if 'metadata' in file:
+                    # file is good and what we are looking for
+                    files_.append(join(root, file))
+
+    print(files_)
+    return files_
+
+
+def read_in_metadata():
+    """
+    Read in the metadata.csv file
+    :return:
+    """
+    # search for the metadata.csv file
+    metadata_files = find_metadata_files()
+
+    # load in the metadata .csv file
+    # assume the first one found is the correct one
+    df = pd.read_csv(metadata_files[0], skipinitialspace=True)
+
+    return df
+
 
 def grid_file_to_12km_rcm(file):
     """
@@ -136,9 +178,20 @@ files = [f for f in listdir(join(data_path, outputs_directory)) if isfile(join(d
 for file in files:
     remove(join(data_path, outputs_directory,file))
 
-#get list of input files to loop through
+
+# get list of input files to loop through
 files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
 print('files to loop through: %s' %files)
+
+
+# get the key parameters used for the UDM run
+# this should count the year ('YEAR') and SSP ('SSP') as a minimum
+parameters_dataframe = read_in_metadata()
+# setting index on the parameter column
+parameters_dataframe.set_index(['PARAMETER'], inplace=True)
+# extract values for ssp and year
+ssp = parameters_dataframe.loc['SSP']['VALUE']
+year = parameters_dataframe.loc['YEAR']['VALUE']
 
 # loop through the files and process
 for file in files:
