@@ -2,7 +2,7 @@
 import subprocess
 from os.path import isfile, join, isdir
 from os import listdir, walk, remove, getenv, mkdir
-#from rasterstats import zonal_stats
+from rasterstats import zonal_stats
 import geopandas as gpd
 import pandas as pd
 import rasterio
@@ -67,8 +67,46 @@ def grid_file_to_12km_rcm(file):
         ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (file_name, 'temp')),
          join(data_path, outputs_directory, "%s-12km-sum.asc" % file_name)])
 
+def rasterise(file):
+    """
 
-def located_population(data_path, output_path, ssp_scenario, year, zone_id_column='id', total_population=False):
+    :return:
+    """
+
+    subprocess.call(['gdal_rasterize',
+                     #'-burn', '1',  # fixed value to burn for all objects
+                     '-a', 'population_total',
+                     '-tr', '1000', '1000',  # target resolution <xres> <yres>
+                     "-te", "0", "12000", "660000", "1212000",
+                     '-co', 'COMPRESS=LZW', '-co', 'NUM_THREADS=ALL_CPUS',  # creation options
+                     '-ot', 'UInt16',  # output data type
+                     join(data_path, 'outputs', 'output.gpkg'),
+                     join(data_path, 'outputs', 'rasterise.tif')])  # src_datasource, dst_filename
+    return
+
+def total_population(gdf, ssp_scenario):
+    """
+
+    :return:
+    """
+    # set the looping parameters for the SSPs
+    decades = [2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
+    ssps = [1, 2, 3, 4, 5]
+
+    # remove data for the other SSPs
+    for ssp_ in ssps:
+        for decade in decades:
+            if ssp_ != ssp_scenario:
+                col = 'POP.' + str(decade) + '.' + str(ssp_)
+                gdf = gdf.drop(columns=[col])
+
+    # create a column of the total population in the zone by summing the new and the base/initial
+    gdf['POP.UDM.TOTAL.%s.%s' % (year, ssp_scenario)] = gdf['POP.UDM.%s.%s' % (year, ssp_scenario)] + gdf[
+        'POP.%s.%s' % (2020, ssp_scenario)]
+
+    return gdf
+
+def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -80,29 +118,27 @@ def located_population(data_path, output_path, ssp_scenario, year, zone_id_colum
     :return:
     """
     # set parameters
-    fz = False
-    zone_id_column = 'DataZone'
+    zone_id_column = 'code'
 
     # load in zones
-    input_files = [f for f in listdir(data_path) if isfile(join(data_path))]
+    input_files = [f for f in listdir(join(data_path,'zones')) if isfile(join(data_path,'zones', f))]
+    if len(input_files) == 0:
+        print('No input zones found')
+    print('Zone files:', input_files)
     gdf = gpd.read_file(join(data_path, 'zones', input_files[0]))
-
-    # get the name of the pph file
-    if fz:
-        file_name = 'out_cell_pph_ssp%s_fz_%s.asc' % (ssp_scenario, year)
-    else:
-        file_name = 'out_cell_pph_ssp%s_%s.asc' % (ssp_scenario, year)
 
     # run the zonal stats
     # get the number of new people per cell (doesn't include existing people)
-    stats = zonal_stats(gdf, join(data_path, file_name), stats=['sum'])
+    stats = zonal_stats(gdf, join(data_path, 'layers', file_name), stats=['sum'])
+
+    print('Stats:', stats)
 
     # get a list of zone IDs
     zone_ids = []
     for index, row in gdf.iterrows():
         #print(row[zone_id_column])
         zone_ids.append(row[zone_id_column])
-
+    print('Zone ids:', zone_ids)
     # assign zone ids to the stats
     zone_stats = {}
     pop_list = []
@@ -116,37 +152,26 @@ def located_population(data_path, output_path, ssp_scenario, year, zone_id_colum
 
     # convert new pop to a series
     pop_series = pd.Series(pop_list, index=index)
+    print('Pop data:', pop_series)
 
     # create a column containing the population in the new cells of development for each zone
-    gdf['POP.UDM.%s.%s' % (year, ssp_scenario)] = pop_series
+    gdf['population_total'] = pop_series
 
     if total_population:
-        # set the looping parameters for the SSPs
-        decades = [2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
-        ssps = [1, 2, 3, 4, 5]
-
-        # remove data for the other SSPs
-        for ssp_ in ssps:
-            for decade in decades:
-                if ssp_ != ssp_scenario:
-                    col = 'POP.' + str(decade) + '.' + str(ssp_)
-                    gdf = gdf.drop(columns=[col])
-
-        # create a column of the total population in the zone by summing the new and the base/initial
-        gdf['POP.UDM.TOTAL.%s.%s' % (year, ssp_scenario)] = gdf['POP.UDM.%s.%s' % (year, ssp_scenario)] + gdf[
-            'POP.%s.%s' % (2020, ssp_scenario)]
-
-    # remove other ssp columns
-    for decade in decades:
-        if year != decade:
-            col = 'POP.' + str(decade) + '.' + str(ssp_scenario)
-            gdf = gdf.drop(columns=[col])
+        gdf = total_population(gdf, ssp_scenario)
 
     # save output
-    if fz:
-        gdf.to_file(join(output_path, "ffe-zones-clyde-ssps-udm-%s-fz-%s.gpkg" % (ssp_scenario, year)), layer='ssps', driver="GPKG")
-    else:
-        gdf.to_file(join(output_path, "ffe-zones-clyde-ssps-udm-%s-%s.gpkg" % (ssp_scenario, year)), layer='ssps', driver="GPKG")
+    gdf.to_file(join(output_path, "output.gpkg"), layer='ssps', driver="GPKG")
+
+    # this is where I add the base population
+
+    # then use Katie's multipliers to adjust populations
+    # then add population density column
+    # create a population_per_cell value - 1km cells
+    # above is then used when rasterising to 1km
+    # re-scale to 12km using sum
+
+
 
     return
 
@@ -197,3 +222,6 @@ year = parameters_dataframe.loc['YEAR']['VALUE']
 for file in files:
     print('Processing: %s' %file)
     grid_file_to_12km_rcm(file)
+
+located_population()
+rasterise('/data/outputs/output.gpkg')

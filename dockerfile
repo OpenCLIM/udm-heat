@@ -9,7 +9,7 @@ RUN apt-get -y update
 
 RUN apt-get -y install libgdal-dev gdal-bin
 
-RUN pip3 install geopandas rasterio
+RUN pip3 install geopandas rasterio rasterstats
 
 COPY main.py /src
 
