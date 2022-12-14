@@ -287,7 +287,7 @@ def create_house_type_layers():
 
     # get file name for raster containing dwelling density
     for f in input_files:
-        if 'build_type' in f:
+        if 'out_cell_dph' in f:
             dwelling_density_file = f
             break
 
@@ -302,13 +302,17 @@ def create_house_type_layers():
         # copy raster so have raster to write to
         raster_outdev = building_types.read(1)
 
+        dwellings = dwellings_per_hectare.read(1)
+
         while i < raster_outdev.shape[0]:
             j = 0
             while j < raster_outdev.shape[1]:
                 cv = raster_outdev[i, j]
                 if cv == type:
+                    # get the density for the tile
+                    density = dwellings[i, j]
                     # assign new value
-                    raster_outdev[i, j] = type * dwellings_per_hectare[i,j]
+                    raster_outdev[i, j] = density
                 else:
                     raster_outdev[i,j] = 0
 
@@ -332,8 +336,6 @@ def create_house_type_layers():
         # Z = raster_file.read(1)
         new_dataset.write(raster_outdev, 1)
         new_dataset.close()
-
-
 
     return
 
@@ -367,8 +369,14 @@ for file in files:
 
 ## get passed variables
 calc_new_population_total = getenv('calculate_new_population')
+if calc_new_population_total is None:
+    calc_new_population_total = False
 new_population_demographic_breakdowns = getenv('demographic_breakdown')
+if new_population_demographic_breakdowns is None:
+    new_population_demographic_breakdowns = False
 generate_new_dwelling_totals = getenv('new_dwelling_totals')
+if generate_new_dwelling_totals is None:
+    generate_new_dwelling_totals = False
 
 
 ## start the processing
