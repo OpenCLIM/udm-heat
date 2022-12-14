@@ -261,6 +261,82 @@ def apply_demographic_rations(gdf, ssp='SSP1', year='2050'):
     return gdf
 
 
+def create_house_type_layers():
+    """
+    Take the out_cell_build_type.asc from UDM and generate layers for each building type
+
+    .asc from UDM has 4 values of interest. This just records the type of dwelling. Need to look at this and dwellings per hectare output (out_cell_dph.asc) to form a count of the number of dwellings in a cell
+    - 1 = detached
+    - 2 = semi-detached
+    - 3 = terraced
+    - 4 = flats
+
+    :return:
+    """
+
+    house_types = [1,2,3,4]
+
+    input_files = [f for f in listdir(join(data_path, 'inputs', 'layers')) if
+                   isfile(join(data_path, 'inputs', 'layers', f))]
+
+    # get file name for raster containing building type
+    for f in input_files:
+        if 'build_type' in f:
+            build_type_file = f
+            break
+
+    # get file name for raster containing dwelling density
+    for f in input_files:
+        if 'build_type' in f:
+            dwelling_density_file = f
+            break
+
+    # read in base coverage raster
+    building_types = rasterio.open(join(data_path,'inputs', 'layers', build_type_file))
+    dwellings_per_hectare = rasterio.open(join(data_path,'inputs', 'layers', dwelling_density_file))
+
+    # loop through and do a house type at a time
+    for type in house_types:
+        i = 0
+
+        # copy raster so have raster to write to
+        raster_outdev = building_types.read(1)
+
+        while i < raster_outdev.shape[0]:
+            j = 0
+            while j < raster_outdev.shape[1]:
+                cv = raster_outdev[i, j]
+                if cv == type:
+                    # assign new value
+                    raster_outdev[i, j] = type * dwellings_per_hectare[i,j]
+                else:
+                    raster_outdev[i,j] = 0
+
+                j += 1
+
+            i += 1
+
+        new_dataset = rasterio.open(
+            join('/data', 'outputs', 'dwellings_%s.asc'%str(type)), "w",
+            # driver = "GTiff",
+            height=raster_outdev.shape[0],
+            width=raster_outdev.shape[1],
+            count=1,
+            nodata=-1,
+            dtype=raster_outdev.dtype,
+            crs=27700,
+            transform=building_types.transform,
+            compress='lzw'
+        )
+
+        # Z = raster_file.read(1)
+        new_dataset.write(raster_outdev, 1)
+        new_dataset.close()
+
+
+
+    return
+
 # set data path and directory names
 data_path = '/data'
 inputs_directory = 'inputs'
@@ -289,6 +365,13 @@ for file in files:
     remove(join(data_path, outputs_directory,file))
 
 
+## get passed variables
+calc_new_population_total = getenv('calculate_new_population')
+new_population_demographic_breakdowns = getenv('demographic_breakdown')
+generate_new_dwelling_totals = getenv('new_dwelling_totals')
+
+
+## start the processing
 # get list of input files to loop through
 files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
 print('files to loop through: %s' %files)
@@ -304,13 +387,22 @@ ssp = parameters_dataframe.loc['SSP']['VALUE']
 year = parameters_dataframe.loc['YEAR']['VALUE']
 
 # loop through the files and process
-for file in files:
-    print('Processing: %s' %file)
-    grid_file_to_12km_rcm(file)
+#for file in files:
+#    print('Processing: %s' %file)
+#    grid_file_to_12km_rcm(file)
 
-gdf = located_population()
 
-apply_demographic_rations(gdf)
+# calculate the new population
+if calc_new_population_total:
+    gdf = located_population()
 
-rasterise('/data/outputs/output.gpkg')
+    if new_population_demographic_breakdowns:
+        # create demographic breakdowns for the new populations
+        apply_demographic_rations(gdf)
+
+# calculate the total of new dwellings
+if generate_new_dwelling_totals:
+    create_house_type_layers()
+
+#rasterise('/data/outputs/output.gpkg')
 
