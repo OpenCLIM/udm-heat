@@ -67,6 +67,7 @@ def grid_file_to_12km_rcm(file):
         ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (file_name, 'temp')),
          join(data_path, outputs_directory, "%s-12km-sum.asc" % file_name)])
 
+
 def rasterise(file):
     """
 
@@ -83,6 +84,7 @@ def rasterise(file):
                      join(data_path, 'outputs', 'output.gpkg'),
                      join(data_path, 'outputs', 'rasterise.tif')])  # src_datasource, dst_filename
     return
+
 
 def add_initial_population(gdf):
     """
@@ -137,6 +139,7 @@ def add_initial_population(gdf):
     print(gdf.columns)
 
     return gdf
+
 
 def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False):
     """
@@ -207,7 +210,55 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     gdf = add_initial_population(gdf)
 
 
-    return
+    return gdf
+
+
+def apply_demographic_rations(gdf, ssp='SSP1', year='2050'):
+    """
+
+    :param gdf:
+    :return:
+    """
+    input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
+
+    ratios = pd.read_csv(join(data_path, 'inputs', 'population_ratios', input_files[0]))#,
+                             #usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
+
+    # get the list of zones of interest
+    lads = gdf['code'].values.tolist()
+
+    # filter the ratios to just the zones of interest
+    ratios = ratios[ratios["LADcode"].isin(lads)]
+    print(ratios.head())
+
+    # filter the columns in the ratios to just the SSP of interest
+    ratio_columns = []
+    for col in ratios.columns:
+        if ssp in col:
+            if year in col:
+                ratio_columns.append(col)
+
+    # filter the ratios df to just the columns of interest
+    print(ratio_columns)
+    df_cols = ratio_columns
+    df_cols.append('LADcode')
+    ratios = ratios[df_cols]
+
+    # merge gdf and ratio column
+    ratios = ratios.rename(columns={"LADcode": "code"})
+    ratios.set_index('code')
+    gdf = gdf.merge(ratios, on='code', how='inner')
+
+    # take the ratios and create new columns with ratios applied
+    gdf['0-64'] = gdf['population_total'] * gdf['%s_%s_0-64'%(ssp, year)]
+    gdf['65-74'] = gdf['population_total'] * gdf['%s_%s_65-74' % (ssp, year)]
+    gdf['75-84'] = gdf['population_total'] * gdf['%s_%s_75-84' % (ssp, year)]
+    gdf['85'] = gdf['population_total'] * gdf['%s_%s_85' % (ssp, year)]
+
+    print(gdf.head())
+    print(gdf.columns)
+
+    return gdf
 
 
 # set data path and directory names
@@ -257,5 +308,9 @@ for file in files:
     print('Processing: %s' %file)
     grid_file_to_12km_rcm(file)
 
-located_population()
+gdf = located_population()
+
+apply_demographic_rations(gdf)
+
 rasterise('/data/outputs/output.gpkg')
+
