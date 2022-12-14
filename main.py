@@ -84,25 +84,57 @@ def rasterise(file):
                      join(data_path, 'outputs', 'rasterise.tif')])  # src_datasource, dst_filename
     return
 
-def total_population(gdf, ssp_scenario):
+def add_initial_population(gdf):
     """
-
+    Gets the population in 2020 for the zones (LADs) of interest and adds them to the geodataframe
     :return:
     """
     # set the looping parameters for the SSPs
-    decades = [2020, 2030, 2040, 2050, 2060, 2070, 2080, 2090, 2100]
-    ssps = [1, 2, 3, 4, 5]
+    ssp = 1 # this never changes, population in 2020 always the same
 
-    # remove data for the other SSPs
-    for ssp_ in ssps:
-        for decade in decades:
-            if ssp_ != ssp_scenario:
-                col = 'POP.' + str(decade) + '.' + str(ssp_)
-                gdf = gdf.drop(columns=[col])
+    #
+    input_files = [f for f in listdir(join(data_path, 'inputs', 'population')) if isfile(join(data_path, 'inputs','population', f))]
+
+    #population = pd.read_csv(next(inputs.glob('ssp/*.csv')),
+    population = pd.read_csv(join(data_path, 'inputs', 'population', input_files[0]),
+                             usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
+
+
+    # Filters the data by chosen SSP and locates the total population per LAD
+    population = population.loc[population['Scenario'] == f'SSP{ssp}']
+    population = population.loc[population['Age Class'] == 'Total']
+    population = population.assign(ID=range(len(population))).set_index('ID')
+
+    # Removes columns that are no needed (class and SSP)
+    population = population.drop(['Age Class', 'Scenario'], axis=1)
+    population.columns = ['code', 'Lad_Name', 'initial_population']
+
+    # Identify which LADs are of interest and outputs only the population data for those LADs
+    print(gdf.head())
+    lads = gdf['code'].values.tolist()
+    print(lads)
+
+
+    clipped_pop = population[population["code"].isin(lads)]
+    print(clipped_pop)
+    clipped_pop.set_index('code')
+    gdf.set_index('code')
+    gdf = gdf.merge(clipped_pop, on='code', how='inner')
+
+    gdf = gdf.drop(['Lad_Name'], axis=1)
+    gdf = gdf.rename(columns={"population_total": "added_population"})
+
+    # Convert population figures to 1000s
+    gdf.loc[:, 'initial_population'] *= 1000
 
     # create a column of the total population in the zone by summing the new and the base/initial
-    gdf['POP.UDM.TOTAL.%s.%s' % (year, ssp_scenario)] = gdf['POP.UDM.%s.%s' % (year, ssp_scenario)] + gdf[
-        'POP.%s.%s' % (2020, ssp_scenario)]
+    gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
+
+
+    # create a population density column
+    gdf['population_density'] = gdf['population_total']/gdf['hectares']
+    print(gdf)
+    print(gdf.columns)
 
     return gdf
 
@@ -164,13 +196,15 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     gdf.to_file(join(output_path, "output.gpkg"), layer='ssps', driver="GPKG")
 
     # this is where I add the base population
-
     # then use Katie's multipliers to adjust populations
     # then add population density column
     # create a population_per_cell value - 1km cells
     # above is then used when rasterising to 1km
     # re-scale to 12km using sum
 
+
+    ## add population to existing LAD
+    gdf = add_initial_population(gdf)
 
 
     return
