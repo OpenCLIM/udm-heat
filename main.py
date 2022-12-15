@@ -273,7 +273,8 @@ def create_house_type_layers():
 
     :return:
     """
-
+    # dwelling types as defined in UDM
+    dwelling_types = {'1': 'detached', '2':'semi-detached', '3':'terraced', '4':'flat'}
     house_types = [1,2,3,4]
 
     input_files = [f for f in listdir(join(data_path, 'inputs', 'layers')) if
@@ -315,13 +316,11 @@ def create_house_type_layers():
                     raster_outdev[i, j] = density
                 else:
                     raster_outdev[i,j] = 0
-
                 j += 1
-
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'dwellings_%s.asc'%str(type)), "w",
+            join('/data', 'outputs', 'dwellings_%s.asc'%dwelling_types[str(type)]), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -377,6 +376,9 @@ if new_population_demographic_breakdowns is None:
 generate_new_dwelling_totals = getenv('new_dwelling_totals')
 if generate_new_dwelling_totals is None:
     generate_new_dwelling_totals = False
+dwellings_count_total = getenv('dwelling_totals')
+if dwellings_count_total is None:
+    dwellings_count_total = False
 
 
 ## start the processing
@@ -411,6 +413,10 @@ if calc_new_population_total:
 # calculate the total of new dwellings
 if generate_new_dwelling_totals:
     create_house_type_layers()
+
+    # get the total number of dwellings, old and new
+    if dwellings_count_total:
+        pass
 
 #rasterise('/data/outputs/output.gpkg')
 

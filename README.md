@@ -8,15 +8,23 @@ The model performs a number of functions to convert UDM outputs into more derive
 * calculate_new_population
   * Description: Calculate the population which has been housed
   * Type: boolean
-  * Default: false
+  * Default: true
+  * Output:
 * demographic_breakdown
   * Description: Apply demographic ratios (passed via a file) to the population values 
   * Type: boolean
-  * Default: false
+  * Default: true
+  * Output:
 * new_dwelling_totals
   * Description: Calculate the number of new dwellings of the 4 main types (detached, semi-detached, terraced and flat)
   * Type: boolean
-  * Default: false
+  * Default: true
+  * Output:
+* dwelling_totals
+  * Description: The total number of dwellings by type, existing and new
+  * Type: boolean
+  * Default: true
+  * Output:
 
 ## Input files
 * layers

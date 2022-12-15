@@ -10,6 +10,32 @@ metadata:
     Convert UDM gridded 1km outputs to 12km RCM grid with SUM method.
 spec:
   inputs:
+    parameters:
+      - name: calculate_new_population
+        title: Calculate the new total population
+        type: boolean
+        description: Calculate the new population given where UDM has located new people through new dwellings.
+        default: true
+        required: true
+      - name: demographic_breakdown
+        title: Calculate population by demographic age band
+        type: boolean
+        description: Using the new total population calculate the number of people in the 4 demographic age bands based on ratios calculated from the SSPs.
+        default: true
+        required: true
+      - name: new_dwelling_totals
+        title: Calculate the total of new dwellings by type
+        type: boolean
+        description: Get the number of dwellings built for the 4 types built by UDM
+        default: true
+        required: true
+      - name: dwelling_totals
+        title: The total number of dwellings by type
+        type: boolean
+        description: Added the new dwellings to those existing in the base data
+        default: true
+        required: true
+
     dataslots:
       - name: Input data files
         description: A single, or set of, .asc files output from the UDM model
@@ -17,6 +43,24 @@ spec:
         required: true
         default:
           - 129f9361-b2ed-460f-a44b-9eeaf00b769c
+      - name: Population
+        description: UK SSP population csv file
+        path: inputs/population
+        required: false
+        default:
+          - c1bc6327-41d1-4480-8560-8766eff7ad88
+      - name: Population ratios
+        description: Population ratios for four age bands (0-64, 65-74, 75-84, 85) based on the UK SSPs per LAD, year and SSP
+        path: inputs/population_ratios
+        required: false
+        default:
+          - a02bcc80-2b2c-40a0-afb3-db9fc2ab0f4a
+      - name: Zones
+        description: A set of zones which match the SSP data, so Local Authority Areas, where the codes match those in the population and population ratios datasets
+        path: inputs/zones
+        required: false
+        default:
+          - 9433582f-22fa-420f-bdd8-c9c48ef7994a
 
   outputs:
     datasets:
