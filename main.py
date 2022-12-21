@@ -141,6 +141,51 @@ def add_initial_population(gdf):
     return gdf
 
 
+def convert_dph_to_pph(file):
+    """
+
+    """
+    print('Converting dph to pph')
+
+    # constant
+    people_per_household = 2.5
+
+    #
+    dph = rasterio.open(join(data_path, 'inputs', 'layers', 'out_cell_dph.asc'))
+
+    # copy raster so have raster to write to
+    pph = dph.read(1)
+
+    i = 0
+    while i < pph.shape[0]:
+        j = 0
+        while j < pph.shape[1]:
+            d = pph[i, j]
+
+            # assign new value
+            pph[i, j] = d * people_per_household
+            j += 1
+        i += 1
+
+    new_dataset = rasterio.open(
+        join('/data', 'inputs', 'layers', 'out_cel_pph.asc'), "w",
+        # driver = "GTiff",
+        height=pph.shape[0],
+        width=pph.shape[1],
+        count=1,
+        nodata=-1,
+        dtype=dph.dtype,
+        crs=27700,
+        transform=dph.transform,
+        compress='lzw'
+    )
+
+    new_dataset.write(pph, 1)
+    new_dataset.close()
+    print('Written new pph layer')
+    return
+
+
 def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
@@ -154,6 +199,10 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     """
     # set parameters
     zone_id_column = 'code'
+
+    if 'dph' in file_name:
+        convert_dph_to_pph(file_name)
+        file_name = 'out_cell_pph.asc'
 
     # load in zones
     input_files = [f for f in listdir(join(data_path,'zones')) if isfile(join(data_path,'zones', f))]
@@ -404,7 +453,7 @@ year = parameters_dataframe.loc['YEAR']['VALUE']
 
 # calculate the new population
 if calc_new_population_total:
-    gdf = located_population()
+    gdf = located_population(file_name='out_cell_dph.asc')
 
     if new_population_demographic_breakdowns:
         # create demographic breakdowns for the new populations
@@ -416,6 +465,7 @@ if generate_new_dwelling_totals:
 
     # get the total number of dwellings, old and new
     if dwellings_count_total:
+        # load in the counts from the base data and add to the new
         pass
 
 #rasterise('/data/outputs/output.gpkg')
