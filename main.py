@@ -53,41 +53,72 @@ def read_in_metadata():
     return df
 
 
-def grid_file_to_12km_rcm(file):
+def grid_file_to_12km_rcm(file, method='sum', output_name=None):
     """
     Take a file and re-grid to the 12Km RCM grid
+
+    Inputs:
+        - file: path to the raster layer to be processed
+        - method: the method to use when converting the values for the new grid size
+
+    Outputs:
+        - new file: the path and name of the new file
+
     """
+    logger.info('Running grid to 12km RCM grid')
 
     # get just the name of the file (remove the extension)
     file_name = file.split('.')[0]
+    if output_name is None:
+        output_name = '%s-12km-%s' %(file_name,method)
+
+    logger.info('Input: %s' %(join(data_path, inputs_directory, input_data_directory, file)))
+    logger.info('Output: %s' %(join(data_path, outputs_directory, "%s.asc" % output_name)))
 
     # re-grid to the 12km RCM grid, save as virtual raster in the temp directory
-    subprocess.run(["gdalwarp", "-te", "0", "12000", "660000", "1212000", "-tr", "12000", "12000", "-r", "sum",
-                    join(data_path, inputs_directory, input_data_directory, file),
-                    join(data_path, temp_directory, '%s-%s.vrt' % (file_name, 'temp'))])
+    subprocess.run(["gdalwarp",
+                    "-te", "0", "12000", "660000", "1212000",
+                    "-tr", "12000", "12000",
+                    "-r", "sum",
+                    '-ot', 'Float32',
+                    '-co', 'COMPRESS=LZW',
+                    '-co', 'NUM_THREADS=ALL_CPUS',
+                    #join(data_path, inputs_directory, input_data_directory, file),
+                    file,
+                    join(data_path, temp_directory, '%s-%s.vrt' % (output_name, 'temp'))])
 
     # save the virtual raster as an .asc in the output directory
     subprocess.run(
-        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (file_name, 'temp')),
-         join(data_path, outputs_directory, "%s-12km-sum.asc" % file_name)])
+        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (output_name, 'temp')),
+         join(data_path, outputs_directory, "%s.asc" % output_name)])
 
+    return join(data_path, outputs_directory, "%s.asc" % output_name)
 
-def rasterise(file):
+def rasterise(file, output_name='output.tif', attribute_name='value'):
     """
+    Rasterise a vector layer to a tif
 
-    :return:
+    Inputs:
+        - file: the path and name of the vector file to be processed
+        - output_name: the name to be given to the generated output
+        - attribute_name: the attribute in the vector layer containing the values of interest
+
+    Outputs:
+        - the name of and path to the output file
+
     """
 
     subprocess.call(['gdal_rasterize',
                      #'-burn', '1',  # fixed value to burn for all objects
-                     '-a', 'population_total',
+                     '-a', '%s' %attribute_name,
                      '-tr', '1000', '1000',  # target resolution <xres> <yres>
                      "-te", "0", "12000", "660000", "1212000",
                      '-co', 'COMPRESS=LZW', '-co', 'NUM_THREADS=ALL_CPUS',  # creation options
-                     '-ot', 'UInt16',  # output data type
-                     join(data_path, 'outputs', 'output.gpkg'),
-                     join(data_path, 'outputs', 'rasterise.tif')])  # src_datasource, dst_filename
-    return
+                     '-ot', 'Float32',  # output data type
+                     join(file),
+                     join(data_path, 'outputs', '%s' %output_name)])  # src_datasource, dst_filename
+
+    return join(data_path, 'outputs', '%s' %output_name)
 
 
 def add_initial_population(gdf):
@@ -141,6 +172,10 @@ def add_initial_population(gdf):
 
     # create a population density column
     gdf['population_density'] = gdf['population_total']/gdf['hectares']
+
+    # create population per 1km cell
+    gdf['population_1km'] = gdf['population_density'] * 100
+
     print(gdf)
     print(gdf.columns)
     logger.info('Completed add initial population method')
@@ -153,6 +188,7 @@ def house_type_sum():
     """
 
     return
+
 
 def convert_dph_to_pph(file):
     """
@@ -260,7 +296,8 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     gdf['population_total'] = pop_series
 
     if total_population:
-        gdf = total_population(gdf, ssp_scenario)
+        ## add population to existing LAD
+        gdf = add_initial_population(gdf)
 
     # save output
     gdf.to_file(join(output_path, "output.gpkg"), layer='ssps', driver="GPKG")
@@ -274,18 +311,24 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     # re-scale to 12km using sum
 
 
-    ## add population to existing LAD
-    gdf = add_initial_population(gdf)
+
 
     logger.info('Completed population method(s)')
     return gdf
 
 
-def apply_demographic_ratios(gdf, ssp='SSP1', year='2050'):
+def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/outputs'):
     """
 
-    :param gdf:
-    :return:
+    Inputs:
+        - geodataframe
+        - ssp: the ssp for the population
+        - year: the year of interest
+        - output_path: the location to save the new geopackage of data
+
+    Returns:
+        - geodataframe
+        - path to output
     """
     logger.info('Running apply demographic ratios method')
 
@@ -330,8 +373,13 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050'):
     print(gdf.head())
     print(gdf.columns)
 
+    # save output
+    gdf.to_file(join(output_path, "population_demographics.gpkg"), layer='ssps', driver="GPKG")
+    logger.info('Written population gpkg to file - population_demographics.gpkg')
+
     logger.info('Completed apply demographic ratios method')
-    return gdf
+
+    return gdf, join(output_path, "population_demographics.gpkg")
 
 
 def create_house_type_layers():
@@ -470,12 +518,18 @@ if generate_new_dwelling_totals is None or generate_new_dwelling_totals.lower() 
 dwellings_count_total = getenv('dwelling_totals')
 if dwellings_count_total is None or generate_new_dwelling_totals.lower() == 'false':
     dwellings_count_total = False
+rasterise_population_outputs = getenv('rasterise_population_outputs')
+if rasterise_population_outputs is None or rasterise_population_outputs.lower() == 'false':
+    rasterise_population_outputs = False
+
 
 logger.info('Fetched passed parameters')
 logger.info('Calculate new population: %s' %calc_new_population_total)
 logger.info('Calculate demographic breakdowns: %s' %new_population_demographic_breakdowns)
+logger.info('Rasterise population outputs: %s' %rasterise_population_outputs)
 logger.info('Calculate new dwelling totals: %s' %generate_new_dwelling_totals)
 logger.info('Calculate total dwellings: %s' %dwellings_count_total)
+
 
 ## start the processing
 # get list of input files to loop through
@@ -504,12 +558,28 @@ logger.info('Read in metadata file and extracted key UDM parameter values')
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    gdf = located_population(file_name='out_cell_dph.asc')
+    gdf = located_population(file_name='out_cell_dph.asc', total_population=True)
+
+    if rasterise_population_outputs:
+        logger.info('Rasterising population output')
+        # rasterise at 1km resolution, then convert to 12km RCM using sum method
+        output = grid_file_to_12km_rcm(rasterise(file='/data/outputs/output.gpkg', attribute_name='population_1km'), output_name='population_total-12km')
+
 
     if new_population_demographic_breakdowns:
         logger.info('Creating new demographic profiles for new population')
         # create demographic breakdowns for the new populations
-        apply_demographic_ratios(gdf)
+        gdf, output = apply_demographic_ratios(gdf)
+
+        if rasterise_population_outputs:
+            logger.info('Rasterising demographic population breakdown')
+            # need to rasterise per demographic breakdown category
+            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+
 else:
     logger.info('Skipping population methods')
 
@@ -528,5 +598,5 @@ if generate_new_dwelling_totals:
 else:
     logger.info('Skipping dwelling methods')
 
-#rasterise('/data/outputs/output.gpkg')
+
 

@@ -2,7 +2,7 @@
 Convert UDM outputs for the HEAT-HARM workflow
 
 ## Description
-The model performs a number of functions to convert UDM outputs into more derived datasets. Most notable are the methods to generate the new population at zone scale or 12km grid, and generate the number of new house types.
+The model performs a number of functions to convert UDM outputs into more derived datasets. Most notable are the methods to generate the new population at zone scale or 12km grid, and generate the number of new house types. More details on the methods employed can be found at the bottom of this page.
 
 ## Inputs variables
 * calculate_new_population
@@ -25,6 +25,11 @@ The model performs a number of functions to convert UDM outputs into more derive
   * Type: boolean
   * Default: true
   * Output:
+* rasterise_population_outputs
+  * Description: Convert the calculated population changes to raster outputs (12km, RCM grid)
+  * Type: boolean
+  * Default: true
+  * Output:
 
 ## Input files
 * layers
@@ -44,3 +49,18 @@ The model performs a number of functions to convert UDM outputs into more derive
 Outputs vary depending on functions run. Broadly speaking 
 
 
+## Processing methods
+### Population calculations
+#### Calculating the 'new' population
+Using the pph (people per hectare) output from UDM the 'new' population can be found using the 1km gridded output. Where the pph file can't be found, the dph (density per hectare) is used, a value of the number of households per hectare and multiplied by 2.5 (the average number of people per household).
+
+#### Calculating the total population
+To derive the total population (baseline + 'new') the original SSP data for 2020 (data for SSP1 is used but all SSPs have the same baseline population in 2020) is found and used as the baseline values. Using zonal statistics the new pph data is assigned to the appropriate local authority area and thus added to the baseline data from the SSPs which is also by local authority area. 
+
+#### Calculating the demographic breakdowns
+The demographic breakdowns are calculated using pre-calculated ratios from the SSPs per LAD, per demographic category. These are then applied to the total population values calculated as above.
+
+#### Raster outputs
+The population data is calculated in vector form by local authority area; to output this as vector data, the data is rasterised at 1km scale initially giving population values per each 1km cell. This is then scaled to the 12km RCM grid by summing the values of all those cells that fall within each 12km grid cell.
+
+### Dwelling calculations

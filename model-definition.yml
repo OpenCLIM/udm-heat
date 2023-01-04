@@ -35,6 +35,11 @@ spec:
         description: Added the new dwellings to those existing in the base data
         default: true
         required: true
+      - name: rasterise_population_outputs
+        title: boolean
+        description: Rasterise population outputs from geopackage to as .asc
+        default: true
+        required: true
 
     dataslots:
       - name: Input data files
