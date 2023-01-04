@@ -55,7 +55,7 @@ Outputs vary depending on functions run. Broadly speaking
 Using the pph (people per hectare) output from UDM the 'new' population can be found using the 1km gridded output. Where the pph file can't be found, the dph (density per hectare) is used, a value of the number of households per hectare and multiplied by 2.5 (the average number of people per household).
 
 #### Calculating the total population
-To derive the total population (baseline + 'new') the original SSP data for 2020 (data for SSP1 is used but all SSPs have the same baseline population in 2020) is found and used as the baseline values. Using zonal statistics the new pph data is assigned to the appropriate local authority area and thus added to the baseline data from the SSPs which is also by local authority area. 
+To derive the total population (baseline + 'new') the original SSP data for 2020 (data for SSP1 is used but all SSPs have the same baseline population in 2020) is found and used as the baseline values. Using zonal statistics the new pph data is assigned to the appropriate local authority area and thus added to the baseline data from the SSPs which is also by local authority area. The population density is calculated.
 
 #### Calculating the demographic breakdowns
 The demographic breakdowns are calculated using pre-calculated ratios from the SSPs per LAD, per demographic category. These are then applied to the total population values calculated as above.
@@ -64,3 +64,10 @@ The demographic breakdowns are calculated using pre-calculated ratios from the S
 The population data is calculated in vector form by local authority area; to output this as vector data, the data is rasterised at 1km scale initially giving population values per each 1km cell. This is then scaled to the 12km RCM grid by summing the values of all those cells that fall within each 12km grid cell.
 
 ### Dwelling calculations
+It's important to note that this is not the number of buildings, but instead the number of dwellings (or addresses) of a building type. For example for flats a value of 100 means there are 100 flats in the cell, but the number of buildings these are contained within is not represented, so this could mean there are 10 buildings, or equally could be 1 building containing the 100 flats.
+
+#### Calculating the number of new dwellings
+Using the out_cell_build_type.asc from UDM which gives the type of building built in each cell and combining that with out_cell_dph.asc layer, a number per cell of the number of dwellings in that cell can be found. This can then be output as by house type as seperate layers giving a count of the number of houses of each type per cell.
+
+#### Calculating the total number of dwellings
+Using a baseline of 2017 for buildings the number of buildings by type (flat, detached and so on) are used already at the 12km scale.

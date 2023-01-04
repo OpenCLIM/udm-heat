@@ -370,8 +370,18 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     gdf['75-84'] = gdf['population_total'] * gdf['%s_%s_75-84' % (ssp, year)]
     gdf['85'] = gdf['population_total'] * gdf['%s_%s_85' % (ssp, year)]
 
-    print(gdf.head())
-    print(gdf.columns)
+    # create a population density column and a per 1km column
+    gdf['0-64_density'] = gdf['0-64'] / gdf['hectares']
+    gdf['0-64_1km'] = gdf['0-64_density'] * 100
+    gdf['65-74_density'] = gdf['65-74'] / gdf['hectares']
+    gdf['65-74_1km'] = gdf['65-74_density'] * 100
+    gdf['75-84_density'] = gdf['75-84'] / gdf['hectares']
+    gdf['75-84_1km'] = gdf['75-84_density'] * 100
+    gdf['85_density'] = gdf['85'] / gdf['hectares']
+    gdf['85_1km'] = gdf['85_density'] * 100
+
+    #print(gdf.head())
+    #print(gdf.columns)
 
     # save output
     gdf.to_file(join(output_path, "population_demographics.gpkg"), layer='ssps', driver="GPKG")
@@ -569,16 +579,15 @@ if calc_new_population_total:
     if new_population_demographic_breakdowns:
         logger.info('Creating new demographic profiles for new population')
         # create demographic breakdowns for the new populations
-        gdf, output = apply_demographic_ratios(gdf)
+        gdf, output = apply_demographic_ratios(gdf, year=year, ssp=ssp)
 
         if rasterise_population_outputs:
             logger.info('Rasterising demographic population breakdown')
             # need to rasterise per demographic breakdown category
-            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
-            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
-            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
-            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
-            #grid_file_to_12km_rcm(rasterise(file=output, attribute_name=''))
+            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='0-64_1km'), output_name='population_demographics_0-64')
+            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='65-74_1km'), output_name='population_demographics_65-74')
+            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='75-84_1km'), output_name='population_demographics_75-84')
+            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='85_1km'), output_name='population_demographics_85')
 
 else:
     logger.info('Skipping population methods')
