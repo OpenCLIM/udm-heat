@@ -6,6 +6,10 @@ from rasterstats import zonal_stats
 import geopandas as gpd
 import pandas as pd
 import rasterio
+import logging
+import random
+import string
+from pathlib import Path
 
 
 def find_metadata_files():
@@ -89,8 +93,12 @@ def rasterise(file):
 def add_initial_population(gdf):
     """
     Gets the population in 2020 for the zones (LADs) of interest and adds them to the geodataframe
-    :return:
+
+    Inputs: geodataframe
+    Returns: geodatagrame
     """
+    logger.info('Running add initial population method')
+
     # set the looping parameters for the SSPs
     ssp = 1 # this never changes, population in 2020 always the same
 
@@ -116,7 +124,6 @@ def add_initial_population(gdf):
     lads = gdf['code'].values.tolist()
     print(lads)
 
-
     clipped_pop = population[population["code"].isin(lads)]
     print(clipped_pop)
     clipped_pop.set_index('code')
@@ -132,20 +139,27 @@ def add_initial_population(gdf):
     # create a column of the total population in the zone by summing the new and the base/initial
     gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
 
-
     # create a population density column
     gdf['population_density'] = gdf['population_total']/gdf['hectares']
     print(gdf)
     print(gdf.columns)
-
+    logger.info('Completed add initial population method')
     return gdf
 
+
+def house_type_sum():
+    """
+    Sum the base house type count with the count of new houses
+    """
+
+    return
 
 def convert_dph_to_pph(file):
     """
 
     """
     print('Converting dph to pph')
+    logger.info('Converting dph to pph')
 
     # constant
     people_per_household = 2.5
@@ -174,7 +188,7 @@ def convert_dph_to_pph(file):
         width=pph.shape[1],
         count=1,
         nodata=-1,
-        dtype=dph.dtype,
+        dtype='float32',
         crs=27700,
         transform=dph.transform,
         compress='lzw'
@@ -183,6 +197,8 @@ def convert_dph_to_pph(file):
     new_dataset.write(pph, 1)
     new_dataset.close()
     print('Written new pph layer')
+    logger.info('Written new pph layer')
+
     return
 
 
@@ -199,6 +215,8 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     """
     # set parameters
     zone_id_column = 'code'
+
+    logger.info('Running fetch population method')
 
     if 'dph' in file_name:
         convert_dph_to_pph(file_name)
@@ -246,6 +264,7 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
 
     # save output
     gdf.to_file(join(output_path, "output.gpkg"), layer='ssps', driver="GPKG")
+    logger.info('Written population gpkg to file - output.gpkg')
 
     # this is where I add the base population
     # then use Katie's multipliers to adjust populations
@@ -258,18 +277,22 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     ## add population to existing LAD
     gdf = add_initial_population(gdf)
 
-
+    logger.info('Completed population method(s)')
     return gdf
 
 
-def apply_demographic_rations(gdf, ssp='SSP1', year='2050'):
+def apply_demographic_ratios(gdf, ssp='SSP1', year='2050'):
     """
 
     :param gdf:
     :return:
     """
+    logger.info('Running apply demographic ratios method')
+
+    # get list of input files
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
 
+    # read in input file
     ratios = pd.read_csv(join(data_path, 'inputs', 'population_ratios', input_files[0]))#,
                              #usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
 
@@ -307,6 +330,7 @@ def apply_demographic_rations(gdf, ssp='SSP1', year='2050'):
     print(gdf.head())
     print(gdf.columns)
 
+    logger.info('Completed apply demographic ratios method')
     return gdf
 
 
@@ -385,6 +409,14 @@ def create_house_type_layers():
         new_dataset.write(raster_outdev, 1)
         new_dataset.close()
 
+    # now add the base house types to the new houses calculated above
+    # the new ones need moving to 12km grid
+
+    # change new houses to 12km grid
+    for type in house_types:
+        grid_file_to_12km_rcm(join('/data', 'outputs', 'dwellings_%s.asc' % dwelling_types[str(type)]))
+
+
     return
 
 # set data path and directory names
@@ -393,7 +425,6 @@ inputs_directory = 'inputs'
 input_data_directory = 'layers'
 temp_directory = 'temp'
 outputs_directory = 'outputs'
-
 
 # check if required folder structure in place
 # if so and folders have files in, empty
@@ -414,6 +445,17 @@ files = [f for f in listdir(join(data_path, outputs_directory)) if isfile(join(d
 for file in files:
     remove(join(data_path, outputs_directory,file))
 
+# stet up logger and log file
+logger = logging.getLogger('udm-heat')
+logger.setLevel(logging.INFO)
+log_file_name = 'udm-heat-%s.log' %(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
+fh = logging.FileHandler( Path(join(data_path, outputs_directory)) / log_file_name)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+logger.info('Log file established!')
+logger.info('------      ------')
 
 ## get passed variables
 calc_new_population_total = getenv('calculate_new_population')
@@ -423,18 +465,24 @@ new_population_demographic_breakdowns = getenv('demographic_breakdown')
 if new_population_demographic_breakdowns is None:
     new_population_demographic_breakdowns = False
 generate_new_dwelling_totals = getenv('new_dwelling_totals')
-if generate_new_dwelling_totals is None:
+if generate_new_dwelling_totals is None or generate_new_dwelling_totals.lower() == 'false':
     generate_new_dwelling_totals = False
 dwellings_count_total = getenv('dwelling_totals')
-if dwellings_count_total is None:
+if dwellings_count_total is None or generate_new_dwelling_totals.lower() == 'false':
     dwellings_count_total = False
 
+logger.info('Fetched passed parameters')
+logger.info('Calculate new population: %s' %calc_new_population_total)
+logger.info('Calculate demographic breakdowns: %s' %new_population_demographic_breakdowns)
+logger.info('Calculate new dwelling totals: %s' %generate_new_dwelling_totals)
+logger.info('Calculate total dwellings: %s' %dwellings_count_total)
 
 ## start the processing
 # get list of input files to loop through
 files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
 print('files to loop through: %s' %files)
-
+logger.info('------      ------')
+logger.info('Got files in input data directory (%s)' %files)
 
 # get the key parameters used for the UDM run
 # this should count the year ('YEAR') and SSP ('SSP') as a minimum
@@ -444,6 +492,7 @@ parameters_dataframe.set_index(['PARAMETER'], inplace=True)
 # extract values for ssp and year
 ssp = parameters_dataframe.loc['SSP']['VALUE']
 year = parameters_dataframe.loc['YEAR']['VALUE']
+logger.info('Read in metadata file and extracted key UDM parameter values')
 
 # loop through the files and process
 #for file in files:
@@ -452,21 +501,32 @@ year = parameters_dataframe.loc['YEAR']['VALUE']
 
 
 # calculate the new population
+logger.info('------Population data------')
 if calc_new_population_total:
+    logger.info('Calculating the new population totals')
     gdf = located_population(file_name='out_cell_dph.asc')
 
     if new_population_demographic_breakdowns:
+        logger.info('Creating new demographic profiles for new population')
         # create demographic breakdowns for the new populations
-        apply_demographic_rations(gdf)
+        apply_demographic_ratios(gdf)
+else:
+    logger.info('Skipping population methods')
 
 # calculate the total of new dwellings
+logger.info('------Dwelling data------')
 if generate_new_dwelling_totals:
+    logger.info('Getting the totals for new dwellings')
     create_house_type_layers()
 
     # get the total number of dwellings, old and new
     if dwellings_count_total:
+        logger.info('Calculating the total number of dwellings (old and new)')
         # load in the counts from the base data and add to the new
+        house_type_sum()
         pass
+else:
+    logger.info('Skipping dwelling methods')
 
 #rasterise('/data/outputs/output.gpkg')
 
