@@ -577,6 +577,10 @@ else:
     for file in files:
         remove(join(data_path, temp_directory,file))
 
+# input directory - create if does not exist
+if isdir(join(data_path, inputs_directory)) is False:
+    mkdir(join(data_path, inputs_directory))
+
 # input data directory - create if does not exist
 if isdir(join(data_path, inputs_directory, input_data_directory)) is False:
     mkdir(join(data_path, inputs_directory, input_data_directory))
