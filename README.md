@@ -31,7 +31,7 @@ The model performs a number of functions to convert UDM outputs into more derive
   * Default: true
   * Output:
 
-## Input files
+## Input files (data slots)
 * layers
   * Description: This should be the files output by the UDM model
   * Location: /data/inputs/layers
@@ -44,10 +44,33 @@ The model performs a number of functions to convert UDM outputs into more derive
 * zones
   * Description: A spatial file containing the zones being used. These should contain codes. .shp or .gpkg expected.
   * Location: /data/inputs/zones
+* base_house_types
+  * Description: The baseline count of dwelling types on a 12km RCM grid
+  * Location: /data/inputs/base_house_types
+
 
 ## Outputs
-Outputs vary depending on functions run. Broadly speaking 
+Outputs vary depending on passed parameters. Below summarises the potential set of outputs which can be generated with some details. A logfile is also generated. 
+### Population
+* (1) A geopackage of the 'new' population by local authority based on a UDM output
+  * Name: population.gpkg 
+  * Location: /data/outputs
+* (2) Raster layer of the new population based on (1)
+  * Location: /data/outputs
+* (3) A geopackage of the 'new' population based on (1) with additional demographic breakdowns
+  * Name: population_demographic.gpkg
+  * Location: /data/outputs
+* (4) Raster layers per demographic category based on (3)
+  * Location: /data/outputs
 
+### Dwellings
+* (1) Raster layers of the counts of the 'new' dwellings based on a UDM output
+* (2) Raster layers of the counts of the total dwellings based on a baseline and the 'new' dwellings based on a UDM output
+
+### Other
+* (1) A logfile for the processes undertaken
+  * Name: udm-heat-<random code>.txt
+  * Location: /data/outputs
 
 ## Processing methods
 ### Population calculations
@@ -70,4 +93,4 @@ It's important to note that this is not the number of buildings, but instead the
 Using the out_cell_build_type.asc from UDM which gives the type of building built in each cell and combining that with out_cell_dph.asc layer, a number per cell of the number of dwellings in that cell can be found. This can then be output as by house type as seperate layers giving a count of the number of houses of each type per cell.
 
 #### Calculating the total number of dwellings
-Using a baseline of 2017 for buildings the number of buildings by type (flat, detached and so on) are used already at the 12km scale.
+Using a baseline of 2017 for buildings the number of buildings by type (flat, detached and so on) are added to the 'new' buildings, as calculated above. The baseline data is prepared at the 12km scale on the RCM grid so can be added to the 'new' dwellings directly.

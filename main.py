@@ -448,7 +448,7 @@ def house_type_sum():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'total_dwellings_%s.asc' % dwelling_types[str(type)]), "w",
+            join('/data', 'outputs', 'total_dwellings_%s.asc' % type), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -456,7 +456,7 @@ def house_type_sum():
             nodata=-1,
             dtype=raster_outdev.dtype,
             crs=27700,
-            transform=building_types.transform,
+            transform=baseline.transform,
             compress='lzw'
         )
 
