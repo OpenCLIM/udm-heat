@@ -578,8 +578,8 @@ else:
         remove(join(data_path, temp_directory,file))
 
 # input data directory - create if does not exist
-if isdir(join(data_path, inputs_directory)) is False:
-    mkdir(join(data_path, inputs_directory))
+if isdir(join(data_path, inputs_directory, input_data_directory)) is False:
+    mkdir(join(data_path, inputs_directory, input_data_directory))
 
 # outputs directory - create if does not exist
 if isdir(join(data_path, outputs_directory)) is False:
