@@ -182,14 +182,6 @@ def add_initial_population(gdf):
     return gdf
 
 
-def house_type_sum():
-    """
-    Sum the base house type count with the count of new houses
-    """
-
-    return
-
-
 def convert_dph_to_pph(file):
     """
 
@@ -392,6 +384,89 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     return gdf, join(output_path, "population_demographics.gpkg")
 
 
+def house_type_sum():
+    """
+    Sum the base house type count with the count of new houses. Reads in baseline data for buildings and adds the data from UDM outputs.
+    """
+
+    # base data needs to be in RCM grid
+
+    # dwelling types as defined in UDM
+    dwelling_types = {'1': 'detached', '2': 'semi-detached', '3': 'terraced', '4': 'flat'}
+    house_types = [1, 2, 3, 4]
+
+    # loop through and do a house type at a time
+    for type in house_types:
+        type = dwelling_types[str(type)]
+
+        # read in the new dwellings layer
+        input_files = [f for f in listdir(join(data_path, 'outputs')) if
+                       isfile(join(data_path, 'outputs', f))]
+        print('Dwelling files:', input_files)
+        for f in input_files:
+            if '%s-12km-sum' %type in f:
+                dwelling_file = f
+                break
+
+        # read in baseline building counts
+        input_files = [f for f in listdir(join(data_path, 'inputs', 'base_house_types')) if
+                       isfile(join(data_path, 'inputs', 'base_house_types', f))]
+        print('Baseline files:', input_files)
+        for f in input_files:
+            if 'gb-2017-%s' %type in f:
+                baseline_file = f
+                break
+
+        print('Doing house type:', type)
+        print('Dwelling file:', dwelling_file)
+        print('Baseline file:', baseline_file)
+
+        # read in base coverage raster
+        dwelling_values = rasterio.open(join(data_path, 'outputs', dwelling_file))
+        baseline_values = rasterio.open(join(data_path, 'inputs', 'base_house_types', baseline_file))
+
+        # copy raster so have raster to write to
+        raster_outdev = baseline_values.read(1)
+
+        baseline = baseline_values.read(1)
+        dwellings = dwelling_values.read(1)
+
+        # iterate over raster using baseline
+        i = 0
+        while i < raster_outdev.shape[0]:
+            j = 0
+            while j < raster_outdev.shape[1]:
+                # get the baseline
+                val_baseline = baseline[i, j]
+                # get the new count
+                val_new = dwellings[i,j]
+
+                # assign new value
+                raster_outdev[i, j] = val_baseline + val_new
+
+                j += 1
+            i += 1
+
+        new_dataset = rasterio.open(
+            join('/data', 'outputs', 'total_dwellings_%s.asc' % dwelling_types[str(type)]), "w",
+            # driver = "GTiff",
+            height=raster_outdev.shape[0],
+            width=raster_outdev.shape[1],
+            count=1,
+            nodata=-1,
+            dtype=raster_outdev.dtype,
+            crs=27700,
+            transform=building_types.transform,
+            compress='lzw'
+        )
+
+        # write new output
+        new_dataset.write(raster_outdev, 1)
+        new_dataset.close()
+
+    return
+
+
 def create_house_type_layers():
     """
     Take the out_cell_build_type.asc from UDM and generate layers for each building type
@@ -404,6 +479,8 @@ def create_house_type_layers():
 
     :return:
     """
+    logger.info('Running the create house type layers method')
+
     # dwelling types as defined in UDM
     dwelling_types = {'1': 'detached', '2':'semi-detached', '3':'terraced', '4':'flat'}
     house_types = [1,2,3,4]
@@ -467,13 +544,11 @@ def create_house_type_layers():
         new_dataset.write(raster_outdev, 1)
         new_dataset.close()
 
-    # now add the base house types to the new houses calculated above
-    # the new ones need moving to 12km grid
-
     # change new houses to 12km grid
     for type in house_types:
         grid_file_to_12km_rcm(join('/data', 'outputs', 'dwellings_%s.asc' % dwelling_types[str(type)]))
 
+    logger.info('Completed create house type layers method')
 
     return
 
@@ -517,10 +592,10 @@ logger.info('------      ------')
 
 ## get passed variables
 calc_new_population_total = getenv('calculate_new_population')
-if calc_new_population_total is None:
+if calc_new_population_total is None or calc_new_population_total.lower() == 'false':
     calc_new_population_total = False
 new_population_demographic_breakdowns = getenv('demographic_breakdown')
-if new_population_demographic_breakdowns is None:
+if new_population_demographic_breakdowns is None or new_population_demographic_breakdowns.lower == 'false':
     new_population_demographic_breakdowns = False
 generate_new_dwelling_totals = getenv('new_dwelling_totals')
 if generate_new_dwelling_totals is None or generate_new_dwelling_totals.lower() == 'false':
@@ -557,11 +632,6 @@ parameters_dataframe.set_index(['PARAMETER'], inplace=True)
 ssp = parameters_dataframe.loc['SSP']['VALUE']
 year = parameters_dataframe.loc['YEAR']['VALUE']
 logger.info('Read in metadata file and extracted key UDM parameter values')
-
-# loop through the files and process
-#for file in files:
-#    print('Processing: %s' %file)
-#    grid_file_to_12km_rcm(file)
 
 
 # calculate the new population
@@ -603,9 +673,9 @@ if generate_new_dwelling_totals:
         logger.info('Calculating the total number of dwellings (old and new)')
         # load in the counts from the base data and add to the new
         house_type_sum()
-        pass
+
 else:
     logger.info('Skipping dwelling methods')
 
-
+logger.info('Completed model')
 
