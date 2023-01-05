@@ -72,6 +72,20 @@ Outputs vary depending on passed parameters. Below summarises the potential set 
   * Name: udm-heat-<random code>.txt
   * Location: /data/outputs
 
+## Running the model
+### Docker image
+For all image name is set to udm-heat, though this can be changed based on personal preference. The location of the folder with data is assumed to be called 'data', though if this is not the case on your personal system, this can be changed in the docker run command so long as the directory after the ':' remains unchanged('/data').
+#### Build docker image
+* docker build . -t udm-heat
+#### Run for all outputs
+* docker run --env calculate_new_population=True --env demographic_breakdown=True --env rasterise_population_outputs=True --env new_dwelling_totals=True --env dwelling_totals=True -v $PWD/data:/data -t udm-heat
+#### Run for just population outputs
+* docker run --env calculate_new_population=True -v $PWD/data:/data -t udm-heat
+#### Run for population outputs and demographic breakdowns in raster format
+* docker run --env calculate_new_population=True --env demographic_breakdown=True --env rasterise_population_outputs=True -v $PWD/data:/data -t udm-heat
+#### Run for just dwelling outputs
+* docker run --env new_dwelling_totals=True --env dwelling_totals=True -v $PWD/data:/data - udm-heat
+
 ## Processing methods
 ### Population calculations
 #### Calculating the 'new' population

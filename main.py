@@ -43,9 +43,11 @@ def read_in_metadata():
     Read in the metadata.csv file
     :return:
     """
+    logger.info('Running read metadata method')
     # search for the metadata.csv file
     metadata_files = find_metadata_files()
 
+    logger.info('Found files: %s' %metadata_files)
     # load in the metadata .csv file
     # assume the first one found is the correct one
     df = pd.read_csv(metadata_files[0], skipinitialspace=True)
@@ -357,10 +359,10 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     gdf = gdf.merge(ratios, on='code', how='inner')
 
     # take the ratios and create new columns with ratios applied
-    gdf['0-64'] = gdf['population_total'] * gdf['%s_%s_0-64'%(ssp, year)]
-    gdf['65-74'] = gdf['population_total'] * gdf['%s_%s_65-74' % (ssp, year)]
-    gdf['75-84'] = gdf['population_total'] * gdf['%s_%s_75-84' % (ssp, year)]
-    gdf['85'] = gdf['population_total'] * gdf['%s_%s_85' % (ssp, year)]
+    gdf['0-64'] = gdf['population_total'] * gdf['%s_0-64_%s'%(year, ssp)]
+    gdf['65-74'] = gdf['population_total'] * gdf['%s_65-74_%s' % (year, ssp)]
+    gdf['75-84'] = gdf['population_total'] * gdf['%s_75-84_%s' % (year, ssp)]
+    gdf['85'] = gdf['population_total'] * gdf['%s_85_%s' % (year, ssp)]
 
     # create a population density column and a per 1km column
     gdf['0-64_density'] = gdf['0-64'] / gdf['hectares']
@@ -405,19 +407,31 @@ def house_type_sum():
         input_files = [f for f in listdir(join(data_path, 'outputs')) if
                        isfile(join(data_path, 'outputs', f))]
         print('Dwelling files:', input_files)
+        dwelling_file = None
         for f in input_files:
-            if '%s-12km-sum' %type in f:
+            if '%s_new-12km-sum' %type in f:
                 dwelling_file = f
                 break
+        if dwelling_file is None:
+            msg = 'ERROR! Could not find the correct dwelling file for %s in the outputs directory' %type
+            logger.info(msg)
+            print(msg)
+            exit(2)
 
         # read in baseline building counts
         input_files = [f for f in listdir(join(data_path, 'inputs', 'base_house_types')) if
                        isfile(join(data_path, 'inputs', 'base_house_types', f))]
         print('Baseline files:', input_files)
+        baseline_file = None
         for f in input_files:
             if 'gb-2017-%s' %type in f:
                 baseline_file = f
                 break
+        if baseline_file is None:
+            msg = 'ERROR! Could not find the correct baseline file for %s in the base_house_types directory' % type
+            logger.info(msg)
+            print(msg)
+            exit(2)
 
         print('Doing house type:', type)
         print('Dwelling file:', dwelling_file)
@@ -452,7 +466,7 @@ def house_type_sum():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'total_dwellings_%s.asc' % type), "w",
+            join('/data', 'outputs', 'dwellings_%s_total.asc' % type), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -470,7 +484,7 @@ def house_type_sum():
 
         dwelling_file = None
         baseline_file = None
-        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'total_dwellings_%s.asc' % type))
+        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'dwellings_%s_total.asc' % type))
 
     return
 
@@ -496,17 +510,31 @@ def create_house_type_layers():
     input_files = [f for f in listdir(join(data_path, 'inputs', 'layers')) if
                    isfile(join(data_path, 'inputs', 'layers', f))]
 
+    logger.info('Searching for files: %s' %input_files)
+
     # get file name for raster containing building type
+    build_type_file = None
     for f in input_files:
         if 'build_type' in f:
             build_type_file = f
             break
+    if build_type_file is None:
+        msg = 'ERROR! Could not find out_cell_build_type.asc file in layers directory'
+        logger.info(msg)
+        print(msg)
+        exit(2)
 
     # get file name for raster containing dwelling density
+    dwelling_density_file = None
     for f in input_files:
         if 'out_cell_dph' in f:
             dwelling_density_file = f
             break
+    if dwelling_density_file is None:
+        msg = 'ERROR! Could not find out_cell_dph.asc file in layers directory'
+        logger.info(msg)
+        print(msg)
+        exit(2)
 
     # read in base coverage raster
     building_types = rasterio.open(join(data_path,'inputs', 'layers', build_type_file))
@@ -536,7 +564,7 @@ def create_house_type_layers():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'dwellings_%s.asc'%dwelling_types[str(type)]), "w",
+            join('/data', 'outputs', 'dwellings_%s_new.asc'%dwelling_types[str(type)]), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -554,7 +582,7 @@ def create_house_type_layers():
 
     # change new houses to 12km grid
     for type in house_types:
-        grid_file_to_12km_rcm(join('/data', 'outputs', 'dwellings_%s.asc' % dwelling_types[str(type)]))
+        grid_file_to_12km_rcm(join('/data', 'outputs', 'dwellings_%s_new.asc' % dwelling_types[str(type)]))
 
     logger.info('Completed create house type layers method')
 
