@@ -388,7 +388,7 @@ def house_type_sum():
     """
     Sum the base house type count with the count of new houses. Reads in baseline data for buildings and adds the data from UDM outputs.
     """
-
+    logger.info('Running house type sum method')
     # base data needs to be in RCM grid
 
     # dwelling types as defined in UDM
@@ -397,7 +397,9 @@ def house_type_sum():
 
     # loop through and do a house type at a time
     for type in house_types:
+        # get dwelling type text
         type = dwelling_types[str(type)]
+        logger.info('------ ------ Dwelling type: %s ------ ------' %type)
 
         # read in the new dwellings layer
         input_files = [f for f in listdir(join(data_path, 'outputs')) if
@@ -420,6 +422,8 @@ def house_type_sum():
         print('Doing house type:', type)
         print('Dwelling file:', dwelling_file)
         print('Baseline file:', baseline_file)
+        logger.info('------ ------ Dwelling file: %s' %dwelling_file)
+        logger.info('------ ------ Baseline file: %s' %baseline_file)
 
         # read in base coverage raster
         dwelling_values = rasterio.open(join(data_path, 'outputs', dwelling_file))
@@ -463,6 +467,10 @@ def house_type_sum():
         # write new output
         new_dataset.write(raster_outdev, 1)
         new_dataset.close()
+
+        dwelling_file = None
+        baseline_file = None
+        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'total_dwellings_%s.asc' % type))
 
     return
 
