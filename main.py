@@ -456,7 +456,7 @@ def house_type_sum():
             nodata=-1,
             dtype=raster_outdev.dtype,
             crs=27700,
-            transform=baseline.transform,
+            transform=baseline_values.transform,
             compress='lzw'
         )
 
