@@ -12,5 +12,8 @@ jobs:
       - name: Build
         run: docker build . -t udm-heat
 
-      - name: Test
+      - name: Test - nothing should run
         run: docker run -v $PWD/data:/data -t udm-heat
+
+      - name: Test - run everything
+        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True -t udm-heat
