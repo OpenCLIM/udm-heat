@@ -569,7 +569,7 @@ outputs_directory = 'outputs'
 
 # check if required folder structure in place
 # if so and folders have files in, empty
-## temp
+# temp directory - create if does not exist
 if isdir(join(data_path, temp_directory)) is False:
     mkdir(join(data_path, temp_directory))
 else:
@@ -577,7 +577,11 @@ else:
     for file in files:
         remove(join(data_path, temp_directory,file))
 
-## outputs
+# input data directory - create if does not exist
+if isdir(join(data_path, inputs_directory)) is False:
+    mkdir(join(data_path, inputs_directory))
+
+# outputs directory - create if does not exist
 if isdir(join(data_path, outputs_directory)) is False:
     mkdir(join(data_path, outputs_directory))
 
