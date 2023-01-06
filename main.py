@@ -234,7 +234,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False):
+def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -294,6 +294,14 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
 
     # create a column containing the population in the new cells of development for each zone
     gdf['population_total'] = pop_series
+
+    if fill_northern_ireland:
+        # UDM doesn't give results for NI, but can be filled using the SSP data
+        pass
+        # check if zones for NI are in the zone data
+        # if zones, fetch values from population data
+        # at this stage just get the new population (baseline - year)
+
 
     if total_population:
         ## add population to existing LAD
@@ -657,6 +665,9 @@ if dwellings_count_total is None or generate_new_dwelling_totals.lower() == 'fal
 rasterise_population_outputs = getenv('rasterise_population_outputs')
 if rasterise_population_outputs is None or rasterise_population_outputs.lower() == 'false':
     rasterise_population_outputs = False
+include_northern_ireland = getenv('include_northern_ireland')
+if include_northern_ireland is None or include_northern_ireland.lower() == 'false':
+    include_northern_ireland = False
 
 
 logger.info('Fetched passed parameters')
@@ -665,7 +676,7 @@ logger.info('Calculate demographic breakdowns: %s' %new_population_demographic_b
 logger.info('Rasterise population outputs: %s' %rasterise_population_outputs)
 logger.info('Calculate new dwelling totals: %s' %generate_new_dwelling_totals)
 logger.info('Calculate total dwellings: %s' %dwellings_count_total)
-
+logger.info('Include Northern Ireland in population outputs: %s' %include_northern_ireland)
 
 ## start the processing
 # get list of input files to loop through
@@ -689,7 +700,7 @@ logger.info('Read in metadata file and extracted key UDM parameter values')
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    gdf = located_population(file_name='out_cell_dph.asc', total_population=True)
+    gdf = located_population(file_name='out_cell_dph.asc', total_population=True, fill_northern_ireland=include_northern_ireland )
 
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
