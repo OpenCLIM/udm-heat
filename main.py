@@ -396,6 +396,7 @@ def house_type_sum():
     """
     logger.info('Running house type sum method')
     # base data needs to be in RCM grid
+    no_data_value = 99999999
 
     # dwelling types as defined in UDM
     dwelling_types = {'1': 'detached', '2': 'semi-detached', '3': 'terraced', '4': 'flat'}
@@ -460,6 +461,8 @@ def house_type_sum():
             while j < raster_outdev.shape[1]:
                 # get the baseline
                 val_baseline = baseline[i, j]
+                if val_baseline == no_data_value or val_baseline > no_data_value:
+                    val_baseline = 0
                 # get the new count
                 val_new = dwellings[i,j]
 
