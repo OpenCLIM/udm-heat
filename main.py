@@ -94,6 +94,8 @@ def grid_file_to_12km_rcm(file, method='sum', output_name=None):
         ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (output_name, 'temp')),
          join(data_path, outputs_directory, "%s.asc" % output_name)])
 
+
+
     return join(data_path, outputs_directory, "%s.asc" % output_name)
 
 def rasterise(file, output_name='output.tif', attribute_name='value'):
@@ -212,7 +214,7 @@ def convert_dph_to_pph(file):
         i += 1
 
     new_dataset = rasterio.open(
-        join('/data', 'inputs', 'layers', 'out_cel_pph.asc'), "w",
+        join('/data', 'inputs', 'layers', 'out_cell_pph.asc'), "w",
         # driver = "GTiff",
         height=pph.shape[0],
         width=pph.shape[1],
@@ -257,7 +259,11 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     if len(input_files) == 0:
         print('No input zones found')
     print('Zone files:', input_files)
-    gdf = gpd.read_file(join(data_path, 'zones', input_files[0]))
+    for file in input_files:
+        ext = file.split('.')[-1]
+        if ext == 'shp':
+            zone_file = file
+    gdf = gpd.read_file(join(data_path, 'zones', zone_file))
 
     # run the zonal stats
     # get the number of new people per cell (doesn't include existing people)
@@ -294,7 +300,7 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
         gdf = add_initial_population(gdf)
 
     # save output
-    gdf.to_file(join(output_path, "output.gpkg"), layer='ssps', driver="GPKG")
+    gdf.to_file(join(output_path, "population.gpkg"), layer='ssps', driver="GPKG")
     logger.info('Written population gpkg to file - output.gpkg')
 
     # this is where I add the base population
@@ -303,8 +309,6 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     # create a population_per_cell value - 1km cells
     # above is then used when rasterising to 1km
     # re-scale to 12km using sum
-
-
 
 
     logger.info('Completed population method(s)')
@@ -409,11 +413,11 @@ def house_type_sum():
         print('Dwelling files:', input_files)
         dwelling_file = None
         for f in input_files:
-            if '%s_new-12km-sum' %type in f:
+            if '%s_new-12km.asc' %type in f:
                 dwelling_file = f
                 break
         if dwelling_file is None:
-            msg = 'ERROR! Could not find the correct dwelling file for %s in the outputs directory' %type
+            msg = 'ERROR! Could not find the correct dwelling file for %s in the outputs directory. Looking for file with "%s_new-12km.asc" in the name.' %(type, type)
             logger.info(msg)
             print(msg)
             exit(2)
@@ -466,7 +470,7 @@ def house_type_sum():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'dwellings_%s_total.asc' % type), "w",
+            join('/data', 'outputs', 'dwellings_%s_total-12km.asc' % type), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -484,7 +488,7 @@ def house_type_sum():
 
         dwelling_file = None
         baseline_file = None
-        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'dwellings_%s_total.asc' % type))
+        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'dwellings_%s_total-12km.asc' % type))
 
     return
 
@@ -582,7 +586,7 @@ def create_house_type_layers():
 
     # change new houses to 12km grid
     for type in house_types:
-        grid_file_to_12km_rcm(join('/data', 'outputs', 'dwellings_%s_new.asc' % dwelling_types[str(type)]))
+        grid_file_to_12km_rcm(file=join('/data', 'outputs', 'dwellings_%s_new.asc' % dwelling_types[str(type)]), output_name='dwellings_%s_new-12km' % dwelling_types[str(type)])
 
     logger.info('Completed create house type layers method')
 
@@ -687,7 +691,7 @@ if calc_new_population_total:
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
         # rasterise at 1km resolution, then convert to 12km RCM using sum method
-        output = grid_file_to_12km_rcm(rasterise(file='/data/outputs/output.gpkg', attribute_name='population_1km'), output_name='population_total-12km')
+        output = grid_file_to_12km_rcm(rasterise(file='/data/outputs/population.gpkg', attribute_name='population_1km'), output_name='population_total-12km')
 
 
     if new_population_demographic_breakdowns:

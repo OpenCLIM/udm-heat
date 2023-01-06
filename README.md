@@ -56,20 +56,26 @@ Outputs vary depending on passed parameters. Below summarises the potential set 
   * Name: population.gpkg 
   * Location: /data/outputs
 * (2) Raster layer of the new population based on (1)
+  * Name: population_total-12km.asc
   * Location: /data/outputs
 * (3) A geopackage of the 'new' population based on (1) with additional demographic breakdowns
-  * Name: population_demographic.gpkg
+  * Name: population_demographics.gpkg
   * Location: /data/outputs
 * (4) Raster layers per demographic category based on (3)
+  * Name: population_demographics_#age band#.asc
   * Location: /data/outputs
 
 ### Dwellings
 * (1) Raster layers of the counts of the 'new' dwellings based on a UDM output
+  * Name: dwellings_#dwelling type#_new-12km.asc
+  * Location: /data/outputs
 * (2) Raster layers of the counts of the total dwellings based on a baseline and the 'new' dwellings based on a UDM output
-
+  * Name: dwellings_#dwelling type#_total-12km.asc
+  * Location: /data/outputs
+   
 ### Other
 * (1) A logfile for the processes undertaken
-  * Name: udm-heat-<random code>.txt
+  * Name: udm-heat-#random code#.txt
   * Location: /data/outputs
 
 ## Running the model
