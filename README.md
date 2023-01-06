@@ -33,7 +33,7 @@ The model performs a number of functions to convert UDM outputs into more derive
 
 ## Input files (data slots)
 * layers
-  * Description: This should be the files output by the UDM model
+  * Description: This should be the files output by the UDM model. As a minimum it should include the following files: metadata.csv, out_cell_dph.asc, out_cell_build_type.asc
   * Location: /data/inputs/layers
 * population
   * Description: A .csv of population data, broken down by zone and year.
