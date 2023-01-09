@@ -47,7 +47,7 @@ def read_in_metadata():
     # search for the metadata.csv file
     metadata_files = find_metadata_files()
 
-    logger.info('Found files: %s' %metadata_files)
+    logger.info(f'Found files: {metadata_files}')
     # load in the metadata .csv file
     # assume the first one found is the correct one
     df = pd.read_csv(metadata_files[0], skipinitialspace=True)
@@ -72,9 +72,9 @@ def grid_file_to_12km_rcm(file, method='sum', output_name=None):
     # get just the name of the file (remove the extension)
     file_name = file.split('.')[0]
     if output_name is None:
-        output_name = '%s-12km-%s' %(file_name,method)
+        output_name = f'{file_name}-12km-{method}'
 
-    logger.info('Input: %s' %(join(data_path, inputs_directory, input_data_directory, file)))
+    logger.info(f'Input: {join(data_path, inputs_directory, input_data_directory, file)}')
     logger.info('Output: %s' %(join(data_path, outputs_directory, "%s.asc" % output_name)))
 
     # re-grid to the 12km RCM grid, save as virtual raster in the temp directory
@@ -87,16 +87,14 @@ def grid_file_to_12km_rcm(file, method='sum', output_name=None):
                     '-co', 'NUM_THREADS=ALL_CPUS',
                     #join(data_path, inputs_directory, input_data_directory, file),
                     file,
-                    join(data_path, temp_directory, '%s-%s.vrt' % (output_name, 'temp'))])
+                    join(data_path, temp_directory, f'{output_name}-temp.vrt')])
 
     # save the virtual raster as an .asc in the output directory
     subprocess.run(
-        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, "%s-%s.vrt" % (output_name, 'temp')),
-         join(data_path, outputs_directory, "%s.asc" % output_name)])
+        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, f"{output_name}-temp.vrt"),
+         join(data_path, outputs_directory, f"{output_name}.asc")])
 
-
-
-    return join(data_path, outputs_directory, "%s.asc" % output_name)
+    return join(data_path, outputs_directory, f"{output_name}.asc")
 
 def rasterise(file, output_name='output.tif', attribute_name='value'):
     """
@@ -114,18 +112,18 @@ def rasterise(file, output_name='output.tif', attribute_name='value'):
 
     subprocess.call(['gdal_rasterize',
                      #'-burn', '1',  # fixed value to burn for all objects
-                     '-a', '%s' %attribute_name,
+                     '-a', attribute_name,
                      '-tr', '1000', '1000',  # target resolution <xres> <yres>
                      "-te", "0", "12000", "660000", "1212000",
                      '-co', 'COMPRESS=LZW', '-co', 'NUM_THREADS=ALL_CPUS',  # creation options
                      '-ot', 'Float32',  # output data type
                      join(file),
-                     join(data_path, 'outputs', '%s' %output_name)])  # src_datasource, dst_filename
+                     join(data_path, 'outputs', f'{output_name}')])  # src_datasource, dst_filename
 
-    return join(data_path, 'outputs', '%s' %output_name)
+    return join(data_path, 'outputs', f'{output_name}')
 
 
-def add_initial_population(gdf):
+def add_initial_population(gdf, ssp=1):
     """
     Gets the population in 2020 for the zones (LADs) of interest and adds them to the geodataframe
 
@@ -135,12 +133,11 @@ def add_initial_population(gdf):
     logger.info('Running add initial population method')
 
     # set the looping parameters for the SSPs
-    ssp = 1 # this never changes, population in 2020 always the same
 
-    #
+    # search for the population file
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population')) if isfile(join(data_path, 'inputs','population', f))]
 
-    #population = pd.read_csv(next(inputs.glob('ssp/*.csv')),
+    # read in the population file into a dataframe
     population = pd.read_csv(join(data_path, 'inputs', 'population', input_files[0]),
                              usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
 
@@ -155,12 +152,10 @@ def add_initial_population(gdf):
     population.columns = ['code', 'Lad_Name', 'initial_population']
 
     # Identify which LADs are of interest and outputs only the population data for those LADs
-    print(gdf.head())
     lads = gdf['code'].values.tolist()
-    print(lads)
+    print('Local authority codes to get population data for: ',lads)
 
     clipped_pop = population[population["code"].isin(lads)]
-    print(clipped_pop)
     clipped_pop.set_index('code')
     gdf.set_index('code')
     gdf = gdf.merge(clipped_pop, on='code', how='inner')
@@ -234,7 +229,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False):
+def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -247,9 +242,37 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     """
     # set parameters
     zone_id_column = 'code'
+    ssp_number = ssp_scenario[3:]
 
     logger.info('Running fetch population method')
 
+    # looking for which input file should be used to find the new population
+    # get a list of the input files to search through
+    input_files = [f for f in listdir(join(data_path, 'layers')) if isfile(join(data_path, 'layers', f))]
+    file_name = None
+
+    # see if the out cell pph file is present
+    for file in input_files:
+        if 'cell_pph.asc' in file:
+            file_name = 'out_cell_pph.asc'
+
+    # if 1st choice is not present, look for out cell dph
+    if file_name is None:
+        for file in input_files:
+            if 'cell_dph.asc' in file:
+                file_name = 'out_cell_dph.asc'
+
+    # if could not find either pph or dph files, return an error message and exit
+    if file_name is None:
+        msg = 'Error! Could not find either out_cell_dph or out_cell_pph.'
+        print(msg)
+        logger.info(msg)
+        exit(2)
+    else:
+        # record which file was found and is going to be used
+        logger.info(f'After scanning the input files, using {file_name} to get the allocated population')
+
+    # if only the dph file was found, use to create the pph file and reset the file name to this
     if 'dph' in file_name:
         convert_dph_to_pph(file_name)
         file_name = 'out_cell_pph.asc'
@@ -261,7 +284,7 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
     print('Zone files:', input_files)
     for file in input_files:
         ext = file.split('.')[-1]
-        if ext == 'shp':
+        if ext == 'shp' or ext == 'gpkg':
             zone_file = file
     gdf = gpd.read_file(join(data_path, 'zones', zone_file))
 
@@ -294,14 +317,60 @@ def located_population(file_name='out_cell_pph.asc', data_path='/data/inputs', o
 
     # create a column containing the population in the new cells of development for each zone
     gdf['population_total'] = pop_series
+    print(f'Population geodataframe: {gdf.head()}')
 
     if fill_northern_ireland:
         # UDM doesn't give results for NI, but can be filled using the SSP data
-        pass
+
         # check if zones for NI are in the zone data
         # if zones, fetch values from population data
         # at this stage just get the new population (baseline - year)
 
+        # check if row has a value of 0 and a code beginning with N
+        # fetch values from population data for base year (2020) and current year
+
+        # search for the population file
+        input_files = [f for f in listdir(join(data_path, 'population')) if
+                       isfile(join(data_path, 'population', f))]
+
+        # read in the population file into a dataframe
+        population = pd.read_csv(join(data_path, 'population', input_files[0]),
+                                 usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020', year])
+
+        # Filters the data by chosen SSP and locates the total population per LAD
+        population = population.loc[population['Scenario'] == f'{ssp_scenario}']
+        population = population.loc[population['Age Class'] == 'Total']
+        # set index
+        population = population.assign(ID=range(len(population))).set_index('ID')
+
+
+        # Removes columns that are not needed (class and SSP)
+        population = population.drop(['Age Class', 'Scenario'], axis=1)
+        population.columns = ['code', 'Lad_Name', 'initial_population', 'year_population']
+
+        # Identify which LADs are of interest and outputs only the population data for those LADs
+        lads = gdf['code'].values.tolist()
+        ni_lads = []
+        for ld in lads:
+            if 'N' in ld:
+                ni_lads.append(ld)
+
+        print('Local authority codes to get population data for: ', ni_lads)
+
+        clipped_pop = population[population["code"].isin(ni_lads)]
+        clipped_pop.set_index('code')
+        gdf.set_index('code')
+
+        # calculate the 'new' population
+        clipped_pop['population_change'] = (clipped_pop['year_population']*1000) - (clipped_pop['initial_population']*1000)
+
+        # loop through the lads and update the value in the main dataframe
+        for lad in ni_lads:
+            value_to_assign = clipped_pop.loc[clipped_pop['code'] == lad, 'population_change']
+            gdf.loc[gdf.index[gdf['code']==lad].tolist()[0], 'population_total'] = value_to_assign.values[0]
+
+        print('Calculated pop (after):', gdf.head())
+        print('NI POP data:', clipped_pop)
 
     if total_population:
         ## add population to existing LAD
@@ -371,10 +440,10 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     gdf = gdf.merge(ratios, on='code', how='inner')
 
     # take the ratios and create new columns with ratios applied
-    gdf['0-64'] = gdf['population_total'] * gdf['%s_0-64_%s'%(year, ssp)]
-    gdf['65-74'] = gdf['population_total'] * gdf['%s_65-74_%s' % (year, ssp)]
-    gdf['75-84'] = gdf['population_total'] * gdf['%s_75-84_%s' % (year, ssp)]
-    gdf['85'] = gdf['population_total'] * gdf['%s_85_%s' % (year, ssp)]
+    gdf['0-64'] = gdf['population_total'] * gdf[f'{year}_0-64_{ssp}']
+    gdf['65-74'] = gdf['population_total'] * gdf[f'{year}_65-74_{ssp}']
+    gdf['75-84'] = gdf['population_total'] * gdf[f'{year}_75-84_{ssp}' ]
+    gdf['85'] = gdf['population_total'] * gdf[f'{year}_85_{ssp}']
 
     # create a population density column and a per 1km column
     gdf['0-64_density'] = gdf['0-64'] / gdf['hectares']
@@ -414,7 +483,7 @@ def house_type_sum():
     for type in house_types:
         # get dwelling type text
         type = dwelling_types[str(type)]
-        logger.info('------ ------ Dwelling type: %s ------ ------' %type)
+        logger.info(f'------ ------ Dwelling type: {type} ------ ------')
 
         # read in the new dwellings layer
         input_files = [f for f in listdir(join(data_path, 'outputs')) if
@@ -422,11 +491,11 @@ def house_type_sum():
         print('Dwelling files:', input_files)
         dwelling_file = None
         for f in input_files:
-            if '%s_new-12km.asc' %type in f:
+            if f'{type}_new-12km.asc' in f:
                 dwelling_file = f
                 break
         if dwelling_file is None:
-            msg = 'ERROR! Could not find the correct dwelling file for %s in the outputs directory. Looking for file with "%s_new-12km.asc" in the name.' %(type, type)
+            msg = f'ERROR! Could not find the correct dwelling file for {type} in the outputs directory. Looking for file with "{type}_new-12km.asc" in the name.'
             logger.info(msg)
             print(msg)
             exit(2)
@@ -437,11 +506,11 @@ def house_type_sum():
         print('Baseline files:', input_files)
         baseline_file = None
         for f in input_files:
-            if 'gb-2017-%s' %type in f:
+            if f'gb-2017-{type}' in f:
                 baseline_file = f
                 break
         if baseline_file is None:
-            msg = 'ERROR! Could not find the correct baseline file for %s in the base_house_types directory' % type
+            msg = f'ERROR! Could not find the correct baseline file for {type} in the base_house_types directory'
             logger.info(msg)
             print(msg)
             exit(2)
@@ -449,8 +518,8 @@ def house_type_sum():
         print('Doing house type:', type)
         print('Dwelling file:', dwelling_file)
         print('Baseline file:', baseline_file)
-        logger.info('------ ------ Dwelling file: %s' %dwelling_file)
-        logger.info('------ ------ Baseline file: %s' %baseline_file)
+        logger.info(f'------ ------ Dwelling file: {dwelling_file}')
+        logger.info(f'------ ------ Baseline file: {baseline_file}')
 
         # read in base coverage raster
         dwelling_values = rasterio.open(join(data_path, 'outputs', dwelling_file))
@@ -481,7 +550,7 @@ def house_type_sum():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'dwellings_%s_total-12km.asc' % type), "w",
+            join('/data', 'outputs', f'dwellings_{type}_total-12km.asc'), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -525,7 +594,7 @@ def create_house_type_layers():
     input_files = [f for f in listdir(join(data_path, 'inputs', 'layers')) if
                    isfile(join(data_path, 'inputs', 'layers', f))]
 
-    logger.info('Searching for files: %s' %input_files)
+    logger.info(f'Searching for files: {input_files}')
 
     # get file name for raster containing building type
     build_type_file = None
@@ -579,7 +648,7 @@ def create_house_type_layers():
             i += 1
 
         new_dataset = rasterio.open(
-            join('/data', 'outputs', 'dwellings_%s_new.asc'%dwelling_types[str(type)]), "w",
+            join('/data', 'outputs', f'dwellings_{dwelling_types[str(type)]}_new.asc'), "w",
             # driver = "GTiff",
             height=raster_outdev.shape[0],
             width=raster_outdev.shape[1],
@@ -597,7 +666,7 @@ def create_house_type_layers():
 
     # change new houses to 12km grid
     for type in house_types:
-        grid_file_to_12km_rcm(file=join('/data', 'outputs', 'dwellings_%s_new.asc' % dwelling_types[str(type)]), output_name='dwellings_%s_new-12km' % dwelling_types[str(type)])
+        grid_file_to_12km_rcm(file=join('/data', 'outputs', f'dwellings_{dwelling_types[str(type)]}_new.asc'), output_name=f'dwellings_{dwelling_types[str(type)]}_new-12km')
 
     logger.info('Completed create house type layers method')
 
@@ -651,39 +720,39 @@ logger.info('------      ------')
 
 ## get passed variables
 calc_new_population_total = getenv('calculate_new_population')
-if calc_new_population_total is None or calc_new_population_total.lower() == 'false':
+if calc_new_population_total is None or str(calc_new_population_total).lower() == 'false':
     calc_new_population_total = False
 new_population_demographic_breakdowns = getenv('demographic_breakdown')
-if new_population_demographic_breakdowns is None or new_population_demographic_breakdowns.lower == 'false':
+if new_population_demographic_breakdowns is None or str(new_population_demographic_breakdowns).lower() == 'false':
     new_population_demographic_breakdowns = False
 generate_new_dwelling_totals = getenv('new_dwelling_totals')
-if generate_new_dwelling_totals is None or generate_new_dwelling_totals.lower() == 'false':
+if generate_new_dwelling_totals is None or str(generate_new_dwelling_totals).lower() == 'false':
     generate_new_dwelling_totals = False
 dwellings_count_total = getenv('dwelling_totals')
-if dwellings_count_total is None or generate_new_dwelling_totals.lower() == 'false':
+if dwellings_count_total is None or str(generate_new_dwelling_totals).lower() == 'false':
     dwellings_count_total = False
 rasterise_population_outputs = getenv('rasterise_population_outputs')
-if rasterise_population_outputs is None or rasterise_population_outputs.lower() == 'false':
+if rasterise_population_outputs is None or str(rasterise_population_outputs).lower() == 'false':
     rasterise_population_outputs = False
 include_northern_ireland = getenv('include_northern_ireland')
-if include_northern_ireland is None or include_northern_ireland.lower() == 'false':
+if include_northern_ireland is None or str(include_northern_ireland).lower() == 'false':
     include_northern_ireland = False
 
 
 logger.info('Fetched passed parameters')
-logger.info('Calculate new population: %s' %calc_new_population_total)
-logger.info('Calculate demographic breakdowns: %s' %new_population_demographic_breakdowns)
-logger.info('Rasterise population outputs: %s' %rasterise_population_outputs)
-logger.info('Calculate new dwelling totals: %s' %generate_new_dwelling_totals)
-logger.info('Calculate total dwellings: %s' %dwellings_count_total)
-logger.info('Include Northern Ireland in population outputs: %s' %include_northern_ireland)
+logger.info(f'Calculate new population: {calc_new_population_total}')
+logger.info(f'Calculate demographic breakdowns: {new_population_demographic_breakdowns}')
+logger.info(f'Rasterise population outputs: {rasterise_population_outputs}')
+logger.info(f'Calculate new dwelling totals: {generate_new_dwelling_totals}')
+logger.info(f'Calculate total dwellings: {dwellings_count_total}')
+logger.info(f'Include Northern Ireland in population outputs: {include_northern_ireland}')
 
 ## start the processing
 # get list of input files to loop through
 files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
-print('files to loop through: %s' %files)
+print(f'Files to loop through: {files}')
 logger.info('------      ------')
-logger.info('Got files in input data directory (%s)' %files)
+logger.info(f'Got files in input data directory ({files})')
 
 # get the key parameters used for the UDM run
 # this should count the year ('YEAR') and SSP ('SSP') as a minimum
@@ -694,13 +763,15 @@ parameters_dataframe.set_index(['PARAMETER'], inplace=True)
 ssp = parameters_dataframe.loc['SSP']['VALUE']
 year = parameters_dataframe.loc['YEAR']['VALUE']
 logger.info('Read in metadata file and extracted key UDM parameter values')
+logger.info(f'----- SSP:{ssp}')
+logger.info(f'----- Year: {year}')
 
 
 # calculate the new population
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    gdf = located_population(file_name='out_cell_dph.asc', total_population=True, fill_northern_ireland=include_northern_ireland )
+    gdf = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland )
 
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
