@@ -36,8 +36,15 @@ spec:
         default: true
         required: true
       - name: rasterise_population_outputs
-        title: boolean
+        title: Rasterise population outputs
+        type: boolean
         description: Rasterise population outputs from geopackage to as .asc
+        default: true
+        required: true
+      - name: include_northern_ireland
+        title: Include population data for Northern Ireland
+        type: boolean
+        description: Include population values for Northern Ireland filling the gap from UDM which doesn't include NI data.
         default: true
         required: true
 
