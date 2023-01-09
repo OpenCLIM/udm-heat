@@ -406,6 +406,7 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
         - path to output
     """
     logger.info('Running apply demographic ratios method')
+    print('Running apply demographic ratios method')
 
     # get list of input files
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
@@ -429,7 +430,8 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
                 ratio_columns.append(col)
 
     # filter the ratios df to just the columns of interest
-    print(ratio_columns)
+    print('Ratio columns:', ratio_columns)
+    logger.info(f'Using the following data for ratios: {ratio_columns}')
     df_cols = ratio_columns
     df_cols.append('LADcode')
     ratios = ratios[df_cols]
@@ -455,8 +457,7 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     gdf['85_density'] = gdf['85'] / gdf['hectares']
     gdf['85_1km'] = gdf['85_density'] * 100
 
-    #print(gdf.head())
-    #print(gdf.columns)
+    print('Saving output with ratio breakdowns')
 
     # save output
     gdf.to_file(join(output_path, "population_demographics.gpkg"), layer='ssps', driver="GPKG")
