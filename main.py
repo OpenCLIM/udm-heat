@@ -169,14 +169,17 @@ def add_initial_population(gdf, ssp=1):
     # create a column of the total population in the zone by summing the new and the base/initial
     gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
 
+    # area in km
+    gdf['area_h'] = gdf['hectares']/1000.0 # the hectares column is actually meters
+    gdf['area_km'] = gdf['area_h'] / 100.0
+
     # create a population density column
-    gdf['population_density'] = gdf['population_total']/gdf['hectares']
+    gdf['population_density'] = gdf['population_total']/gdf['area_km']
 
     # create population per 1km cell
-    gdf['population_1km'] = gdf['population_density'] * 100
+    gdf['population_1km'] = gdf['population_density']
 
-    print(gdf)
-    print(gdf.columns)
+    print(f'Population stats {gdf.head()}')
     logger.info('Completed add initial population method')
     return gdf
 
@@ -448,14 +451,14 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     gdf['85'] = gdf['population_total'] * gdf[f'{year}_85_{ssp}']
 
     # create a population density column and a per 1km column
-    gdf['0-64_density'] = gdf['0-64'] / gdf['hectares']
-    gdf['0-64_1km'] = gdf['0-64_density'] * 100
-    gdf['65-74_density'] = gdf['65-74'] / gdf['hectares']
-    gdf['65-74_1km'] = gdf['65-74_density'] * 100
-    gdf['75-84_density'] = gdf['75-84'] / gdf['hectares']
-    gdf['75-84_1km'] = gdf['75-84_density'] * 100
-    gdf['85_density'] = gdf['85'] / gdf['hectares']
-    gdf['85_1km'] = gdf['85_density'] * 100
+    gdf['0-64_density'] = gdf['0-64'] / gdf['area_km']
+    gdf['0-64_1km'] = gdf['0-64_density']# * 100
+    gdf['65-74_density'] = gdf['65-74'] / gdf['area_km']
+    gdf['65-74_1km'] = gdf['65-74_density']# * 100
+    gdf['75-84_density'] = gdf['75-84'] / gdf['area_km']
+    gdf['75-84_1km'] = gdf['75-84_density']# * 100
+    gdf['85_density'] = gdf['85'] / gdf['area_km']
+    gdf['85_1km'] = gdf['85_density']# * 100
 
     print('Saving output with ratio breakdowns')
 
@@ -812,4 +815,5 @@ else:
     logger.info('Skipping dwelling methods')
 
 logger.info('Completed model')
+
 
