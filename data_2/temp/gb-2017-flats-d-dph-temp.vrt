@@ -1,0 +1,37 @@
+<VRTDataset rasterXSize="55" rasterYSize="100" subClass="VRTWarpedDataset">
+  <GeoTransform>  0.0000000000000000e+00,  1.2000000000000000e+04,  0.0000000000000000e+00,  1.2120000000000000e+06,  0.0000000000000000e+00, -1.2000000000000000e+04</GeoTransform>
+  <VRTRasterBand dataType="Int32" band="1" subClass="VRTWarpedRasterBand">
+    <NoDataValue>0</NoDataValue>
+  </VRTRasterBand>
+  <BlockXSize>55</BlockXSize>
+  <BlockYSize>100</BlockYSize>
+  <GDALWarpOptions>
+    <WarpMemoryLimit>6.71089e+07</WarpMemoryLimit>
+    <ResampleAlg>Sum</ResampleAlg>
+    <WorkingDataType>Int32</WorkingDataType>
+    <Option name="INIT_DEST">NO_DATA</Option>
+    <Option name="ERROR_OUT_IF_EMPTY_SOURCE_WINDOW">FALSE</Option>
+    <SourceDataset relativeToVRT="0">/data/inputs/layers/gb-2017-flats-d-dph.asc</SourceDataset>
+    <Transformer>
+      <ApproxTransformer>
+        <MaxError>0.125</MaxError>
+        <BaseTransformer>
+          <GenImgProjTransformer>
+            <SrcGeoTransform>5000,100,0,1221000,0,-100</SrcGeoTransform>
+            <SrcInvGeoTransform>-50,0.0100000000000000002,0,12210,0,-0.0100000000000000002</SrcInvGeoTransform>
+            <DstGeoTransform>0,12000,0,1212000,0,-12000</DstGeoTransform>
+            <DstInvGeoTransform>-0,8.33333333333333306e-05,0,101,0,-8.33333333333333306e-05</DstInvGeoTransform>
+          </GenImgProjTransformer>
+        </BaseTransformer>
+      </ApproxTransformer>
+    </Transformer>
+    <BandList>
+      <BandMapping src="1" dst="1">
+        <SrcNoDataReal>0</SrcNoDataReal>
+        <SrcNoDataImag>0</SrcNoDataImag>
+        <DstNoDataReal>0</DstNoDataReal>
+        <DstNoDataImag>0</DstNoDataImag>
+      </BandMapping>
+    </BandList>
+  </GDALWarpOptions>
+</VRTDataset>
