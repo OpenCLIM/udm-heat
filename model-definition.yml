@@ -1,4 +1,4 @@
-kind: Model
+kind: M
 api_version: v1beta2
 metadata:
   display_name: UDM-HEAT
