@@ -123,7 +123,7 @@ def rasterise(file, output_name='output.tif', attribute_name='value'):
     return join(data_path, 'outputs', f'{output_name}')
 
 
-def add_initial_population(gdf, ssp=1):
+def add_initial_population(gdf, ssp=1, area_field_name='area'):
     """
     Gets the population in 2020 for the zones (LADs) of interest and adds them to the geodataframe
 
@@ -170,7 +170,7 @@ def add_initial_population(gdf, ssp=1):
     gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
 
     # area in km
-    gdf['area_h'] = gdf[lad_area_field_name]/1000.0 # the hectares column is actually meters
+    gdf['area_h'] = gdf[area_field_name]/1000.0 # the hectares column is actually meters
     gdf['area_km'] = gdf['area_h'] / 100.0
 
     # create a population density column
@@ -232,7 +232,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False):
+def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False, area_field_name='area'):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -377,7 +377,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
 
     if total_population:
         ## add population to existing LAD
-        gdf = add_initial_population(gdf)
+        gdf = add_initial_population(gdf, area_field_name=area_field_name)
 
     # save output
     gdf.to_file(join(output_path, "population.gpkg"), layer='ssps', driver="GPKG")
@@ -744,7 +744,7 @@ if include_northern_ireland is None or str(include_northern_ireland).lower() == 
     include_northern_ireland = False
 
 lad_area_field_name = getenv('area_field_name')
-
+print(f'LAD area field name: {lad_area_field_name}')
 
 logger.info('Fetched passed parameters')
 logger.info(f'Calculate new population: {calc_new_population_total}')
@@ -753,6 +753,7 @@ logger.info(f'Rasterise population outputs: {rasterise_population_outputs}')
 logger.info(f'Calculate new dwelling totals: {generate_new_dwelling_totals}')
 logger.info(f'Calculate total dwellings: {dwellings_count_total}')
 logger.info(f'Include Northern Ireland in population outputs: {include_northern_ireland}')
+logger.info(f'LAD area field name: {lad_area_field_name}')
 
 ## start the processing
 # get list of input files to loop through
@@ -778,7 +779,7 @@ logger.info(f'----- Year: {year}')
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    gdf = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland )
+    gdf = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland, area_field_name=lad_area_field_name )
 
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
