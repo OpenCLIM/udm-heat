@@ -48,7 +48,8 @@ spec:
         default: true
         required: true
       - name: area_field_name
-        title: Zone data area attribute name - units expected to be in metres
+        title: Zone data area attribute name - area in metres
+        description: The attribute name in the zone data which contains the area value in meters
         type: string
         default: 'st_areasha'
         required: true
