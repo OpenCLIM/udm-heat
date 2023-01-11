@@ -47,6 +47,17 @@ spec:
         description: Include population values for Northern Ireland filling the gap from UDM which doesn't include NI data.
         default: true
         required: true
+      - name: rasterising_grid
+        title: Which grid should the data be rasterised too
+        description: Select a grid to rasterise the data to if rasterising (RCM 12km, OSGB 100m)
+        type: string
+        default: 'RCM 12km'
+        required: true
+        options:
+          - name: rcm_12km
+            title: RCM 12Km
+          - name: osgb_100m
+            title: OSGB 100m
 
     dataslots:
       - name: Input data files

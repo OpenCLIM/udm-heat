@@ -741,6 +741,7 @@ if rasterise_population_outputs is None or str(rasterise_population_outputs).low
 include_northern_ireland = getenv('include_northern_ireland')
 if include_northern_ireland is None or str(include_northern_ireland).lower() == 'false':
     include_northern_ireland = False
+grid_to_rasterise_too = getenv('rasterising_grid')
 
 
 logger.info('Fetched passed parameters')
@@ -750,6 +751,8 @@ logger.info(f'Rasterise population outputs: {rasterise_population_outputs}')
 logger.info(f'Calculate new dwelling totals: {generate_new_dwelling_totals}')
 logger.info(f'Calculate total dwellings: {dwellings_count_total}')
 logger.info(f'Include Northern Ireland in population outputs: {include_northern_ireland}')
+logger.info(f'Grid to rasterise data too: {grid_to_rasterise_too}')
+
 
 ## start the processing
 # get list of input files to loop through
