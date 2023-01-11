@@ -170,7 +170,7 @@ def add_initial_population(gdf, ssp=1):
     gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
 
     # area in km
-    gdf['area_h'] = gdf['hectares']/1000.0 # the hectares column is actually meters
+    gdf['area_h'] = gdf[lad_area_field_name]/1000.0 # the hectares column is actually meters
     gdf['area_km'] = gdf['area_h'] / 100.0
 
     # create a population density column
@@ -683,6 +683,7 @@ input_data_directory = 'layers'
 temp_directory = 'temp'
 outputs_directory = 'outputs'
 
+
 # check if required folder structure in place
 # if so and folders have files in, empty
 # temp directory - create if does not exist
@@ -741,6 +742,8 @@ if rasterise_population_outputs is None or str(rasterise_population_outputs).low
 include_northern_ireland = getenv('include_northern_ireland')
 if include_northern_ireland is None or str(include_northern_ireland).lower() == 'false':
     include_northern_ireland = False
+
+lad_area_field_name = getenv('area_field_name')
 
 
 logger.info('Fetched passed parameters')

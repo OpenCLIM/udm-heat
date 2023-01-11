@@ -47,6 +47,11 @@ spec:
         description: Include population values for Northern Ireland filling the gap from UDM which doesn't include NI data.
         default: true
         required: true
+      - name: area_field_name
+        title: Zone data area attribute name - units expected to be in metres
+        type: string
+        default: 'st_areasha'
+        required: true
 
     dataslots:
       - name: Input data files
