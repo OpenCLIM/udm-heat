@@ -52,9 +52,9 @@ spec:
       - name: Input data files
         description: A single, or set of, .asc files output from the UDM model
         path: inputs/layers
-        required: true
+        required: false
         default:
-          - 129f9361-b2ed-460f-a44b-9eeaf00b769c
+          - f428caa4-14da-4d71-8b1f-fe6bf123b08d
       - name: Population
         description: UK SSP population csv file
         path: inputs/population
@@ -66,7 +66,7 @@ spec:
         path: inputs/population_ratios
         required: false
         default:
-          - a02bcc80-2b2c-40a0-afb3-db9fc2ab0f4a
+          - 15102e42-b6a4-42dd-84d3-d7e615cd9789
       - name: Zones
         description: A set of zones which match the SSP data, so Local Authority Areas, where the codes match those in the population and population ratios datasets
         path: inputs/zones
