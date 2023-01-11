@@ -110,6 +110,7 @@ def rasterise(file, output_name='output.tif', attribute_name='value'):
 
     """
 
+
     subprocess.call(['gdal_rasterize',
                      #'-burn', '1',  # fixed value to burn for all objects
                      '-a', attribute_name,
@@ -675,6 +676,22 @@ def create_house_type_layers():
     logger.info('Completed create house type layers method')
 
     return
+
+
+def set_rasterise_parameters(parameter_value):
+    """
+
+    :return:
+    """
+
+    if parameter_value == 'RCM 12Km':
+        grid_resolution = '12000'
+        grid_settings =  ["0", "12000", "660000", "1212000"]
+    elif parameter_value == 'OSGB 100m':
+        grid_resolution = '100'
+        grid_settings = ''
+
+    return grid_resolution, grid_settings
 
 # set data path and directory names
 data_path = '/data'
