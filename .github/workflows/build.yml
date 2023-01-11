@@ -16,7 +16,7 @@ jobs:
         run: docker run -v $PWD/data:/data -t udm-heat
 
       - name: Test - run everything
-        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True --env include_northern_ireland=True --env rasterise_population_outputs=True -t udm-heat
+        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True --env include_northern_ireland=True --env rasterise_population_outputs=True --env area_field_name=hectares -t udm-heat
 
       - name: Test - run everything without the pph file
-        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True --env include_northern_ireland=True --env rasterise_population_outputs=True -t udm-heat
+        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True --env include_northern_ireland=True --env rasterise_population_outputs=True --env area_field_name=hectares -t udm-heat
