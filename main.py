@@ -386,7 +386,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     for col in gdf.columns:
         if 'fid' in col.lower():
             # need to rename column
-            gdf.rename(columns={'fid': 'fid_)'}, inplace=True)
+            gdf.rename(columns={'fid': 'fid_'}, inplace=True)
 
             # create a new fid field with values from original fid field but as integers
             gdf['fid'] = int(gdf['fid_'])
