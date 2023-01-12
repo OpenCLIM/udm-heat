@@ -5,6 +5,7 @@ from os import listdir, walk, remove, getenv, mkdir
 from rasterstats import zonal_stats
 import geopandas as gpd
 import pandas as pd
+import numpy as np
 import rasterio
 import logging
 import random
@@ -378,6 +379,21 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     if total_population:
         ## add population to existing LAD
         gdf = add_initial_population(gdf, area_field_name=area_field_name)
+
+    # make sure fid field is integer type
+    # check if a fid field and if so rename
+    found_fid = False
+    for col in gdf.columns:
+        if 'fid' in col.lower():
+            # need to rename column
+            gdf.rename(columns={'fid': 'fid_)'}, inplace=True)
+
+            # create a new fid field with values from original fid field but as integers
+            gdf['fid'] = int(gdf['fid_'])
+        break
+
+    if found_fid is False:
+        gdf["fid"] = np.arange(len(gdf))
 
     # save output
     gdf.to_file(join(output_path, "population.gpkg"), layer='ssps', driver="GPKG")
