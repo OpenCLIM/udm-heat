@@ -171,7 +171,7 @@ def add_initial_population(gdf, ssp=1, area_field_name='area'):
     gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
 
     # area in km
-    gdf['area_h'] = gdf[area_field_name]/1000.0 # the hectares column is actually meters
+    gdf['area_h'] = gdf[area_field_name]/10000.0 # the hectares column is actually meters
     gdf['area_km'] = gdf['area_h'] / 100.0
 
     # create a population density column
