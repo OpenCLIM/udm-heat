@@ -389,7 +389,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             gdf.rename(columns={'fid': 'fid_'}, inplace=True)
 
             # create a new fid field with values from original fid field but as integers
-            gdf['fid'] = int(gdf['fid_'])
+            gdf['fid'] = gdf['fid_'].astype('int64')
         break
 
     if found_fid is False:
