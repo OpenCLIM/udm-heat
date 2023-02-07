@@ -97,6 +97,42 @@ def grid_file_to_12km_rcm(file, method='sum', output_name=None):
 
     return join(data_path, outputs_directory, f"{output_name}.asc")
 
+def to_12km_rcm(file, method='sum', output_name=None):
+    """
+    Convert a 1km raster to a 12km RCM raster
+
+    """
+    logger.info('Running 1km raster to 12km RCM ')
+
+    # get just the name of the file (remove the extension)
+    file_name = file.split('.')[0]
+    if output_name is None:
+        output_name = f'{file_name}-12km-{method}'
+
+    logger.info(f'Input: {join(data_path, inputs_directory, input_data_directory, file)}')
+    logger.info('Output: %s' % (join(data_path, outputs_directory, "%s.asc" % output_name)))
+
+    # re-grid to the 12km RCM grid, save as virtual raster in the temp directory
+    subprocess.run(["gdalwarp",
+                    "-te", "0", "12000", "660000", "1212000",
+                    "-tr", "12000", "12000",
+                    "-r", "sum",
+                    '-ot', 'Float32',
+                    '-co', 'COMPRESS=LZW',
+                    '-co', 'NUM_THREADS=ALL_CPUS',
+                    # join(data_path, inputs_directory, input_data_directory, file),
+                    file,
+                    join(data_path, temp_directory, f'{output_name}-temp.vrt')])
+
+    # save the virtual raster as an .asc in the output directory
+    subprocess.run(
+        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, f"{output_name}-temp.vrt"),
+         join(data_path, outputs_directory, f"{output_name}.asc")])
+
+    return join(data_path, outputs_directory, f"{output_name}.asc")
+
+
+
 def rasterise(file, output_name='output.tif', attribute_name='value'):
     """
     Rasterise a vector layer to a tif
@@ -233,7 +269,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, zone_id_column='id', total_population=False, fill_northern_ireland=False, area_field_name='area'):
+def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, baseline_year=2020, zone_id_column='id', total_population=False, fill_northern_ireland=False, area_field_name='area'):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -281,134 +317,65 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
         convert_dph_to_pph(file_name)
         file_name = 'out_cell_pph.asc'
 
-    # load in zones
-    input_files = [f for f in listdir(join(data_path,'zones')) if isfile(join(data_path,'zones', f))]
-    if len(input_files) == 0:
-        print('No input zones found')
-    print('Zone files:', input_files)
-    for file in input_files:
-        ext = file.split('.')[-1]
-        if ext == 'shp' or ext == 'gpkg':
-            zone_file = file
-    gdf = gpd.read_file(join(data_path, 'zones', zone_file))
 
-    # run the zonal stats
-    # get the number of new people per cell (doesn't include existing people)
-    stats = zonal_stats(gdf, join(data_path, 'layers', file_name), stats=['sum'])
+    # instead, convert asc to 1km grid which matches SSP grid
+    # convert SSP layer to grid also?? or polygonize .asc file created in step before (above)
+    # everything will then be on 1km grid, just need some maths, then converting to 12km grid
 
-    print('Stats:', stats)
+    # re-grid to the 1km grid, save as virtual raster in the temp directory
+    output_name='pph_1km'
+    print('File:',file)
+    subprocess.run(["gdalwarp",
+                     "-te", "0", "5000", "656000", "1221000",
+                    "-tr", "1000", "1000",
+                    "-r", "sum",
+                    '-ot', 'Float32',
+                    '-co', 'COMPRESS=LZW',
+                    '-co', 'NUM_THREADS=ALL_CPUS',
+                    # join(data_path, inputs_directory, input_data_directory, file),
+                    f"/data/inputs/layers/out_cell_pph.asc",
+                    #join(data_path, temp_directory, f'{output_name}-temp.vrt')])
+                    f"/data/temp/{output_name}.tif"
+                    ])
+    print('Generated 1km pph file')
 
-    # get a list of zone IDs
-    zone_ids = []
-    for index, row in gdf.iterrows():
-        #print(row[zone_id_column])
-        zone_ids.append(row[zone_id_column])
-    print('Zone ids:', zone_ids)
-    # assign zone ids to the stats
-    zone_stats = {}
-    pop_list = []
-    index = []
-    i = 0
-    for stat in stats:
-        zone_stats[zone_ids[i]] = stat
-        pop_list.append(stat['sum'])
-        index.append(i)
-        i += 1
-
-    # convert new pop to a series
-    pop_series = pd.Series(pop_list, index=index)
-    print('Pop data:', pop_series)
-
-    # create a column containing the population in the new cells of development for each zone
-    gdf['population_total'] = pop_series
-    print(f'Population geodataframe: {gdf.head()}')
-
-    if fill_northern_ireland:
-        # UDM doesn't give results for NI, but can be filled using the SSP data
-
-        # check if zones for NI are in the zone data
-        # if zones, fetch values from population data
-        # at this stage just get the new population (baseline - year)
-
-        # check if row has a value of 0 and a code beginning with N
-        # fetch values from population data for base year (2020) and current year
-
-        # search for the population file
-        input_files = [f for f in listdir(join(data_path, 'population')) if
-                       isfile(join(data_path, 'population', f))]
-
-        # read in the population file into a dataframe
-        population = pd.read_csv(join(data_path, 'population', input_files[0]),
-                                 usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020', year])
-
-        # Filters the data by chosen SSP and locates the total population per LAD
-        population = population.loc[population['Scenario'] == f'{ssp_scenario}']
-        population = population.loc[population['Age Class'] == 'Total']
-        # set index
-        population = population.assign(ID=range(len(population))).set_index('ID')
-
-
-        # Removes columns that are not needed (class and SSP)
-        population = population.drop(['Age Class', 'Scenario'], axis=1)
-        population.columns = ['code', 'Lad_Name', 'initial_population', 'year_population']
-
-        # Identify which LADs are of interest and outputs only the population data for those LADs
-        lads = gdf['code'].values.tolist()
-        ni_lads = []
-        for ld in lads:
-            if 'N' in ld:
-                ni_lads.append(ld)
-
-        print('Local authority codes to get population data for: ', ni_lads)
-
-        clipped_pop = population[population["code"].isin(ni_lads)]
-        clipped_pop.set_index('code')
-        gdf.set_index('code')
-
-        # calculate the 'new' population
-        clipped_pop['population_change'] = (clipped_pop['year_population']*1000) - (clipped_pop['initial_population']*1000)
-
-        # loop through the lads and update the value in the main dataframe
-        for lad in ni_lads:
-            value_to_assign = clipped_pop.loc[clipped_pop['code'] == lad, 'population_change']
-            gdf.loc[gdf.index[gdf['code']==lad].tolist()[0], 'population_total'] = value_to_assign.values[0]
-
-        print('Calculated pop (after):', gdf.head())
-        print('NI POP data:', clipped_pop)
+    # convert ssp data into 1km raster from 1km vector grid cells for the baseline year
+    subprocess.run([
+        "gdal_rasterize",
+        "-a", f"POP.{baseline_year}.{ssp_scenario}",
+        "-tr", "1000", "1000",
+        "-te", "0", "5000", "656000", "1221000",
+        "/data/inputs/population/population.gpkg",
+        f"/data/temp/pop_baseline_{ssp_scenario}_{baseline_year}.tif"
+    ])
+    print('Generated 1km SSP population raster')
 
     if total_population:
-        ## add population to existing LAD
-        gdf = add_initial_population(gdf, area_field_name=area_field_name)
+        # add the new and baseline rasters together
+        subprocess.run([
+            "gdal_calc.py",
+            "-A", f"/data/temp/{output_name}.tif",
+            "-B", f"/data/temp/pop_baseline_{ssp_scenario}_{baseline_year}.tif",
+            f"--outfile=/data/temp/total_population_{ssp_scenario}_{baseline_year}.tif",
+            "--calc=A+B"
+        ])
+        print('Generated total population')
 
-    # make sure fid field is integer type
-    # check if a fid field and if so rename
-    found_fid = False
-    for col in gdf.columns:
-        if 'fid' in col.lower():
-            # need to rename column
-            gdf.rename(columns={'fid': 'fid_'}, inplace=True)
-
-            # create a new fid field with values from original fid field but as integers
-            gdf['fid'] = gdf['fid_'].astype('int64')
-        break
-
-    if found_fid is False:
-        gdf["fid"] = np.arange(len(gdf))
-
-    # save output
-    gdf.to_file(join(output_path, "population.gpkg"), layer='ssps', driver="GPKG")
-    logger.info('Written population gpkg to file - output.gpkg')
-
+    if fill_northern_ireland:
+        # here to fetch from the population data the population in NI and add to the new population raster
+        # this is more complicated now however as just need the cells covering NI, and none others....
+        pass
+    """
     # this is where I add the base population
     # then use Katie's multipliers to adjust populations
     # then add population density column
     # create a population_per_cell value - 1km cells
     # above is then used when rasterising to 1km
     # re-scale to 12km using sum
-
+    """
 
     logger.info('Completed population method(s)')
-    return gdf
+    return f"/data/temp/{output_name}.tif", f"/data/temp/pop_{ssp_scenario}_{baseline_year}.tif", f"/data/temp/total_population_{ssp_scenario}_{baseline_year}.tif"
 
 
 def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/outputs'):
@@ -781,6 +748,7 @@ logger.info(f'Got files in input data directory ({files})')
 # get the key parameters used for the UDM run
 # this should count the year ('YEAR') and SSP ('SSP') as a minimum
 parameters_dataframe = read_in_metadata()
+print('Got Metadata')
 # setting index on the parameter column
 parameters_dataframe.set_index(['PARAMETER'], inplace=True)
 # extract values for ssp and year
@@ -789,18 +757,21 @@ year = parameters_dataframe.loc['YEAR']['VALUE']
 logger.info('Read in metadata file and extracted key UDM parameter values')
 logger.info(f'----- SSP:{ssp}')
 logger.info(f'----- Year: {year}')
-
+print('Done all prep')
 
 # calculate the new population
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    gdf = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland, area_field_name=lad_area_field_name )
+    new_population, baseline_population, total_population = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland)
 
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
         # rasterise at 1km resolution, then convert to 12km RCM using sum method
-        output = grid_file_to_12km_rcm(rasterise(file='/data/outputs/population.gpkg', attribute_name='population_1km'), output_name='population_total-12km')
+        #output = grid_file_to_12km_rcm(rasterise(file='/data/outputs/population.gpkg', attribute_name='population_1km'), output_name='population_total-12km')
+        to_12km_rcm(file=new_population)
+        to_12km_rcm(file=baseline_population)
+        to_12km_rcm(file=total_population)
 
 
     if new_population_demographic_breakdowns:
