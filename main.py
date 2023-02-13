@@ -97,15 +97,21 @@ def grid_file_to_12km_rcm(file, method='sum', output_name=None):
 
     return join(data_path, outputs_directory, f"{output_name}.asc")
 
+
 def to_12km_rcm(file, method='sum', output_name=None):
     """
-    Convert a 1km raster to a 12km RCM raster
+    Convert a 1km raster to a 12km RCM raster.
+
+    Inputs:
+    - file: the file to convert to 12km RCM grid
 
     """
     logger.info('Running 1km raster to 12km RCM ')
 
     # get just the name of the file (remove the extension)
-    file_name = file.split('.')[0]
+    file_path = file.split('.')[0]
+    file_name = file_path.split('/')[-1]
+
     if output_name is None:
         output_name = f'{file_name}-12km-{method}'
 
@@ -120,20 +126,23 @@ def to_12km_rcm(file, method='sum', output_name=None):
                     '-ot', 'Float32',
                     '-co', 'COMPRESS=LZW',
                     '-co', 'NUM_THREADS=ALL_CPUS',
-                    # join(data_path, inputs_directory, input_data_directory, file),
+                    '-dstnodata', str(nodata_value),
                     file,
                     join(data_path, temp_directory, f'{output_name}-temp.vrt')])
 
     # save the virtual raster as an .asc in the output directory
     subprocess.run(
-        ["gdal_translate", "-of", "AAIGrid", join(data_path, temp_directory, f"{output_name}-temp.vrt"),
-         join(data_path, outputs_directory, f"{output_name}.asc")])
+        ["gdal_translate",
+         "-of", "AAIGrid",
+         "-a_nodata", str(nodata_value),
+         join(data_path, temp_directory, f"{output_name}-temp.vrt"),
+         join(data_path, outputs_directory, f"{output_name}.asc")
+         ])
 
     return join(data_path, outputs_directory, f"{output_name}.asc")
 
 
-
-def rasterise(file, output_name='output.tif', attribute_name='value'):
+def rasterise(file, output_name='output.tif', output_folder='outputs', attribute_name='value', target_resolution=1000, extents=["0", "12000", "660000", "1212000"]):
     """
     Rasterise a vector layer to a tif
 
@@ -150,14 +159,15 @@ def rasterise(file, output_name='output.tif', attribute_name='value'):
     subprocess.call(['gdal_rasterize',
                      #'-burn', '1',  # fixed value to burn for all objects
                      '-a', attribute_name,
-                     '-tr', '1000', '1000',  # target resolution <xres> <yres>
-                     "-te", "0", "12000", "660000", "1212000",
-                     '-co', 'COMPRESS=LZW', '-co', 'NUM_THREADS=ALL_CPUS',  # creation options
+                     '-tr', str(target_resolution), str(target_resolution),  # target resolution <xres> <yres>
+                     "-te", f"{extents[0]}", f"{extents[1]}", f"{extents[2]}", f"{extents[3]}",
+                     '-co', 'COMPRESS=LZW',
+                     '-co', 'NUM_THREADS=ALL_CPUS',  # creation options
                      '-ot', 'Float32',  # output data type
                      join(file),
-                     join(data_path, 'outputs', f'{output_name}')])  # src_datasource, dst_filename
+                     join(data_path, f'{output_folder}', f'{output_name}')])  # src_datasource, dst_filename
 
-    return join(data_path, 'outputs', f'{output_name}')
+    return join(data_path, f'{output_folder}', f'{output_name}')
 
 
 def add_initial_population(gdf, ssp=1, area_field_name='area'):
@@ -269,7 +279,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, baseline_year=2020, zone_id_column='id', total_population=False, fill_northern_ireland=False, area_field_name='area'):
+def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, baseline_year=2020, total_population=False, fill_northern_ireland=False):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -329,15 +339,13 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     output_name='pph_1km'
     print('File:',file)
     subprocess.run(["gdalwarp",
-                     "-te", "0", "5000", "656000", "1221000",
+                    "-te", "0", "5000", "656000", "1221000",
                     "-tr", "1000", "1000",
                     "-r", "sum",
                     '-ot', 'Float32',
                     '-co', 'COMPRESS=LZW',
                     '-co', 'NUM_THREADS=ALL_CPUS',
-                    # join(data_path, inputs_directory, input_data_directory, file),
                     f"/data/inputs/layers/out_cell_pph.asc",
-                    #join(data_path, temp_directory, f'{output_name}-temp.vrt')])
                     f"/data/temp/population_new_{ssp_scenario}_{year}.tif"
                     ])
     export.append(f"/data/temp/population_new_{ssp_scenario}_{year}.tif")
@@ -416,6 +424,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "-A", f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif", # new UK population
             "-B", f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif", # uk baseline population
             f"--outfile=/data/temp/population_total_uk_{ssp_scenario}_{year}.tif",
+            f"--NoDataValue={str(nodata_value)}",
             "--calc=A+B"
         ])
         export.append(f"/data/temp/population_total_uk_{ssp_scenario}_{year}.tif")
@@ -423,6 +432,8 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
         print('Generated total population')
     elif total_population and fill_northern_ireland is False:
         print('Method not implemented!')
+
+
         pass
 
     """
@@ -526,6 +537,7 @@ def house_type_sum():
     dwelling_types = {'1': 'detached', '2': 'semi-detached', '3': 'terraced', '4': 'flat'}
     house_types = [1, 2, 3, 4]
 
+    outputs = []
     # loop through and do a house type at a time
     for type in house_types:
         # get dwelling type text
@@ -553,7 +565,8 @@ def house_type_sum():
         print('Baseline files:', input_files)
         baseline_file = None
         for f in input_files:
-            if f'gb-2017-{type}' in f:
+            #if f'gb-2017-{type}' in f:
+            if f'ssp_grid_{type}_rescount' in f:
                 baseline_file = f
                 break
         if baseline_file is None:
@@ -568,9 +581,19 @@ def house_type_sum():
         logger.info(f'------ ------ Dwelling file: {dwelling_file}')
         logger.info(f'------ ------ Baseline file: {baseline_file}')
 
+        subprocess.run([
+            "gdalwarp",
+            "-tr", "12000", "12000",
+            "-te", "0", "12000", "660000", "1212000",
+            "-r", "sum",
+            join(data_path, 'inputs', 'base_house_types', baseline_file),
+            join(data_path, 'inputs', 'base_house_types', f'ssp_grid_{type}_12km.tif')
+        ])
+
+
         # read in base coverage raster
         dwelling_values = rasterio.open(join(data_path, 'outputs', dwelling_file))
-        baseline_values = rasterio.open(join(data_path, 'inputs', 'base_house_types', baseline_file))
+        baseline_values = rasterio.open(join(data_path, 'inputs', 'base_house_types', f'ssp_grid_{type}_12km.tif'))
 
         # copy raster so have raster to write to
         raster_outdev = baseline_values.read(1)
@@ -615,7 +638,29 @@ def house_type_sum():
 
         dwelling_file = None
         baseline_file = None
-        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', 'dwellings_%s_total-12km.asc' % type))
+        outputs.append(join('/data', 'outputs', f'dwellings_{type}_total-12km.asc'))
+        logger.info('------ ------ Written output: %s' %join('/data', 'outputs', f'dwellings_{type}_total-12km.asc'))
+
+    print(outputs)
+    # subtract from ni population for year and SSP the baseline value to get the new population
+    subprocess.run([
+        "gdal_calc.py",
+        "-A", f"{outputs[0]}",
+        "-B", f"{outputs[1]}",
+        "-C", f"{outputs[2]}",
+        "-D", f"{outputs[3]}",
+        f"--outfile=/data/outputs/dwellings_total-12km.tif",
+        "--calc=A+B+C+D"
+    ])
+
+    # subtract from ni population for year and SSP the baseline value to get the new population
+    subprocess.run([
+        "gdal_calc.py",
+        "-B", f"/data/outputs/dwellings_total-12km.tif",
+        "-A", f"/data/outputs/population_total_uk_{ssp}_{year}-12km-sum.asc",
+        f"--outfile=/data/outputs/people_per_dwellings-12km.tif",
+        "--calc=A/B* (B>0)"
+    ])
 
     return
 
@@ -726,6 +771,8 @@ input_data_directory = 'layers'
 temp_directory = 'temp'
 outputs_directory = 'outputs'
 
+# set a global no data value
+nodata_value = -99999
 
 # check if required folder structure in place
 # if so and folders have files in, empty
