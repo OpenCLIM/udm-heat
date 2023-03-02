@@ -72,7 +72,7 @@ spec:
         path: inputs/population_ratios
         required: false
         default:
-          - 15102e42-b6a4-42dd-84d3-d7e615cd9789
+          - f10bb4f4-c4cd-47d5-aaeb-6d4fa4257d0b
       - name: Zones
         description: A set of zones which match the SSP data, so Local Authority Areas, where the codes match those in the population and population ratios datasets
         path: inputs/zones
