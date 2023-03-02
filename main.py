@@ -431,8 +431,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
 
         print('Generated total population')
     elif total_population and fill_northern_ireland is False:
-        print('Method not implemented!')
-
+        print('Excluding data for northern ireland - method not implemented!')
 
         pass
 
@@ -826,7 +825,7 @@ if generate_new_dwelling_totals is None or str(generate_new_dwelling_totals).low
 dwellings_count_total = getenv('dwelling_totals')
 if dwellings_count_total is None or str(generate_new_dwelling_totals).lower() == 'false':
     dwellings_count_total = False
-rasterise_population_outputs = getenv('rasterise_population_outputs')
+rasterise_population_outputs = getenv('rcm_population_outputs')
 if rasterise_population_outputs is None or str(rasterise_population_outputs).lower() == 'false':
     rasterise_population_outputs = False
 include_northern_ireland = getenv('include_northern_ireland')
@@ -910,5 +909,3 @@ else:
     logger.info('Skipping dwelling methods')
 
 logger.info('Completed model')
-
-
