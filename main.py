@@ -330,6 +330,17 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
         convert_dph_to_pph(file_name)
         file_name = 'out_cell_pph.asc'
 
+    # get name of population file
+    input_files = [f for f in listdir(join(data_path, 'population')) if isfile(join(data_path, 'population', f))]
+    file_name = None
+
+    for file in input_files:
+        file_ext = file.split('.')[-1]
+        if file_ext == 'gpkg' or file_ext == 'shp':
+            if 'ni' in file:
+                population_ni_file = file
+            else:
+                population_file = file
 
     # instead, convert asc to 1km grid which matches SSP grid
     # convert SSP layer to grid also?? or polygonize .asc file created in step before (above)
@@ -357,7 +368,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
         "-a", f"POP.{baseline_year}.{ssp_scenario}",
         "-tr", "1000", "1000",
         "-te", "0", "5000", "656000", "1221000",
-        "/data/inputs/population/population.gpkg",
+        f"/data/inputs/population/{population_file}",
         f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif"
     ])
     export.append(f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif")
@@ -380,7 +391,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "-a", f"POP.{year}.{ssp_scenario}",
             "-tr", "1000", "1000",
             "-te", "0", "5000", "656000", "1221000",
-            "/data/inputs/population/ssp_grid_ni.gpkg",
+            f"/data/inputs/population/{population_ni_file}.gpkg",
             f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"
         ])
         export.append(f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif")
@@ -391,7 +402,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "-a", f"POP.{baseline_year}.{ssp_scenario}",
             "-tr", "1000", "1000",
             "-te", "0", "5000", "656000", "1221000",
-            "/data/inputs/population/ssp_grid_ni.gpkg",
+            f"/data/inputs/population/{population_ni_file}.gpkg",
             f"/data/temp/population_baseline_ni_{ssp_scenario}_{baseline_year}.tif"
         ])
         export.append(f"/data/temp/population_baseline_ni_{ssp_scenario}_{baseline_year}.tif")
