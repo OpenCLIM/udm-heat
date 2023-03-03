@@ -118,6 +118,10 @@ def to_12km_rcm(file, method='sum', output_name=None):
     logger.info(f'Input: {join(data_path, inputs_directory, input_data_directory, file)}')
     logger.info('Output: %s' % (join(data_path, outputs_directory, "%s.asc" % output_name)))
 
+    # check if input file exists
+    if isfile(join(data_path, inputs_directory, input_data_directory, file)) is False:
+        logger.info('---File does not exist!')
+
     # re-grid to the 12km RCM grid, save as virtual raster in the temp directory
     subprocess.run(["gdalwarp",
                     "-te", "0", "12000", "660000", "1212000",
@@ -360,7 +364,9 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
                     f"/data/temp/population_new_{ssp_scenario}_{year}.tif"
                     ])
     export.append(f"/data/temp/population_new_{ssp_scenario}_{year}.tif")
-    print('Generated 1km pph file/ new population file')
+    msg = 'Generated 1km pph file/ new population file'
+    print(msg)
+    logger.info(f'{msg}')
 
     # convert ssp data into 1km raster from 1km vector grid cells for the baseline year
     subprocess.run([
@@ -381,7 +387,8 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
 
         # create 1km raster of population for year to get the 'new' population in northern ireland
         # need to figure which cells fall within northern ireland....
-
+        msg = 'Running NI methods'
+        logger.info(f'{msg}')
         # convert ssp data for NI into 1km raster from 1km vector grid cells for the year of interest
         # use a dataset which only has NI in it
         # get the 'new' NI population need to subtract baseline from year of interest
@@ -426,8 +433,12 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "--calc=A+B"
         ])
         export.append(f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif")
+        msg = 'Completed NI methods'
+        logger.info(f'{msg}')
 
     if total_population and fill_northern_ireland:
+        msg = 'Working on total population output'
+        logger.info(f'{msg}')
         # add the new and baseline rasters together
         # at the moment it's the total for gb and the baseline for ni in this output
         subprocess.run([
