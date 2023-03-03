@@ -79,6 +79,12 @@ spec:
         required: false
         default:
           - 9433582f-22fa-420f-bdd8-c9c48ef7994a
+      - name: Baseline housing data
+        description: Baseline data for housing type counts across the UK
+        path: inputs/base_house_types
+        required: false
+        default:
+          - 9433582f-22fa-420f-bdd8-c9c48ef7994a
 
   outputs:
     datasets:
