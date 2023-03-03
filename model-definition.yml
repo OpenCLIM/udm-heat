@@ -84,7 +84,7 @@ spec:
         path: inputs/base_house_types
         required: false
         default:
-          - 9433582f-22fa-420f-bdd8-c9c48ef7994a
+          - 21c4cd4b-7855-4efa-8e6c-41441c4c7452
 
   outputs:
     datasets:
