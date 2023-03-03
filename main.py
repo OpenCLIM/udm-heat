@@ -402,6 +402,8 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"
         ])
         export.append(f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif")
+        if isfile(f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif") is False:
+            logger.info('***Failed to generate f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"')
 
         # get NI population for baseline year
         subprocess.run([
