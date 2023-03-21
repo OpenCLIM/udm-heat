@@ -146,6 +146,23 @@ def to_12km_rcm(file, method='sum', output_name=None):
     return join(data_path, outputs_directory, f"{output_name}.asc")
 
 
+def apply_correction_to_pop_baseline(baseline_pop_file, correction_file):
+    """
+    Apply correction to the 12km baseline population data
+    """
+    print('Applying correction to population baseline data')
+    # subtract adjustment raster from pop baseline
+    subprocess.run([
+        "gdal_calc.py",
+        "-A", baseline_pop_file,  # baseline pop
+        "-B", correction_file,  # total pop
+        f"--outfile=/data/temp/population_baseline_adjusted.tif",
+        "--calc=A-B"
+    ])
+    print('Applied correction')
+    return '/data/temp/population_baseline_adjusted.tif'
+
+
 def rasterise(file, output_name='output.tif', output_folder='outputs', attribute_name='value', target_resolution=1000, extents=["0", "12000", "660000", "1212000"]):
     """
     Rasterise a vector layer to a tif
@@ -172,67 +189,6 @@ def rasterise(file, output_name='output.tif', output_folder='outputs', attribute
                      join(data_path, f'{output_folder}', f'{output_name}')])  # src_datasource, dst_filename
 
     return join(data_path, f'{output_folder}', f'{output_name}')
-
-
-def add_initial_population(gdf, ssp=1, area_field_name='area'):
-    """
-    Gets the population in 2020 for the zones (LADs) of interest and adds them to the geodataframe
-
-    Inputs: geodataframe
-    Returns: geodatagrame
-    """
-    logger.info('Running add initial population method')
-
-    # set the looping parameters for the SSPs
-
-    # search for the population file
-    input_files = [f for f in listdir(join(data_path, 'inputs', 'population')) if isfile(join(data_path, 'inputs','population', f))]
-
-    # read in the population file into a dataframe
-    population = pd.read_csv(join(data_path, 'inputs', 'population', input_files[0]),
-                             usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
-
-
-    # Filters the data by chosen SSP and locates the total population per LAD
-    population = population.loc[population['Scenario'] == f'SSP{ssp}']
-    population = population.loc[population['Age Class'] == 'Total']
-    population = population.assign(ID=range(len(population))).set_index('ID')
-
-    # Removes columns that are no needed (class and SSP)
-    population = population.drop(['Age Class', 'Scenario'], axis=1)
-    population.columns = ['code', 'Lad_Name', 'initial_population']
-
-    # Identify which LADs are of interest and outputs only the population data for those LADs
-    lads = gdf['code'].values.tolist()
-    print('Local authority codes to get population data for: ',lads)
-
-    clipped_pop = population[population["code"].isin(lads)]
-    clipped_pop.set_index('code')
-    gdf.set_index('code')
-    gdf = gdf.merge(clipped_pop, on='code', how='inner')
-
-    gdf = gdf.drop(['Lad_Name'], axis=1)
-    gdf = gdf.rename(columns={"population_total": "added_population"})
-
-    # Convert population figures to 1000s
-    gdf.loc[:, 'initial_population'] *= 1000
-
-    # create a column of the total population in the zone by summing the new and the base/initial
-    gdf['population_total'] = gdf['added_population'] + gdf['initial_population']
-
-    # area in km
-    gdf['area_h'] = gdf[area_field_name]/10000.0 # the hectares column is actually meters
-    gdf['area_km'] = gdf['area_h'] / 100.0
-
-    # create a population density column
-    gdf['population_density'] = gdf['population_total']/gdf['area_km']
-
-    # create population per 1km cell
-    gdf['population_1km'] = gdf['population_density']
-
-    print(f'Population stats {gdf.head()}')
-    logger.info('Completed add initial population method')
-    return gdf
 
 
 def convert_dph_to_pph(file):
@@ -283,7 +239,7 @@ def convert_dph_to_pph(file):
     return
 
 
-def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, baseline_year=2020, total_population=False, fill_northern_ireland=False):
+def located_population(file_name=None, data_path='/data/inputs', output_path='/data/outputs', ssp_scenario=None, year=None, baseline_year=2020, total_population=False, fill_northern_ireland=False, adjust_baseline_pop = True):
     """
     Uses zonal statistics to get the population in the newly developed cells per zone definition. Optional parameter to then also calculate the total population in the zone.
 
@@ -297,6 +253,8 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     # set parameters
     zone_id_column = 'code'
     ssp_number = ssp_scenario[3:]
+
+
 
     # outputs to export
     export = []
@@ -377,8 +335,14 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
         f"/data/inputs/population/{population_file}",
         f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif"
     ])
-    export.append(f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif")
     print('Generated 1km SSP population raster')
+
+    pop_baseline_12km = to_12km_rcm(f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif")
+    export.append(f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif")
+
+    # apply correction to population baseline
+    if adjust_baseline_pop:
+        corrected_population = apply_correction_to_pop_baseline(pop_baseline_12km, '/data/pop_baseline_adjustment_12km.tif')
 
 
     if fill_northern_ireland:
@@ -398,12 +362,12 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "-a", f"POP.{year}.{ssp_scenario}",
             "-tr", "1000", "1000",
             "-te", "0", "5000", "656000", "1221000",
-            f"/data/inputs/population/{population_ni_file}.gpkg",
+            f"/data/inputs/population/{population_ni_file}",
             f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"
         ])
         export.append(f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif")
         if isfile(f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif") is False:
-            logger.info('***Failed to generate f"/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"')
+            logger.info(f'***Failed to generate "/data/temp/population_total_ni_{ssp_scenario}_{year}.tif"')
 
         # get NI population for baseline year
         subprocess.run([
@@ -411,11 +375,11 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "-a", f"POP.{baseline_year}.{ssp_scenario}",
             "-tr", "1000", "1000",
             "-te", "0", "5000", "656000", "1221000",
-            f"/data/inputs/population/{population_ni_file}.gpkg",
+            f"/data/inputs/population/{population_ni_file}",
             f"/data/temp/population_baseline_ni_{ssp_scenario}_{baseline_year}.tif"
         ])
         export.append(f"/data/temp/population_baseline_ni_{ssp_scenario}_{baseline_year}.tif")
-
+        print('Running substract NI pop from baseline')
         # subtract from ni population for year and SSP the baseline value to get the new population
         subprocess.run([
             "gdal_calc.py",
@@ -425,7 +389,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             "--calc=B-A"
         ])
         export.append(f"/data/temp/population_new_ni_{ssp_scenario}_{year}.tif")
-
+        print('Combining new pop from UDM with new NI from SSP for new UK layer')
         # combine the new population from UDM with the new population from the SSP scenario and year as calculated
         subprocess.run([
             "gdal_calc.py",
@@ -434,6 +398,8 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
             f"--outfile=/data/temp/population_new_uk_{ssp_scenario}_{year}.tif",
             "--calc=A+B"
         ])
+        if isfile(f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif") is False:
+            print('*** did not create population new file ***')
         export.append(f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif")
         msg = 'Completed NI methods'
         logger.info(f'{msg}')
@@ -441,23 +407,41 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     if total_population and fill_northern_ireland:
         msg = 'Working on total population output'
         logger.info(f'{msg}')
+        print(msg)
         # add the new and baseline rasters together
         # at the moment it's the total for gb and the baseline for ni in this output
+        if adjust_baseline_pop:
+            baseline_pop = corrected_population
+        else:
+            baseline_pop = f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif"
+            baseline_pop = to_12km_rcm(baseline_pop)
+
+        new_pop_12km = to_12km_rcm(f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif")
+
         subprocess.run([
             "gdal_calc.py",
-            "-A", f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif", # new UK population
-            "-B", f"/data/temp/population_baseline_uk_{ssp_scenario}_{baseline_year}.tif", # uk baseline population
-            f"--outfile=/data/temp/population_total_uk_{ssp_scenario}_{year}.tif",
+            "-A", new_pop_12km, # new UK population
+            "-B", baseline_pop, # uk baseline population
+            f"--outfile=/data/outputs/population_total_uk_{ssp_scenario}_{year}.tif",
             f"--NoDataValue={str(nodata_value)}",
             "--calc=A+B"
         ])
-        export.append(f"/data/temp/population_total_uk_{ssp_scenario}_{year}.tif")
+        if isfile(f"/data/outputs/population_total_uk_{ssp_scenario}_{year}.tif"):
+            print('***Generated population total***')
+        else:
+            print('***!!Did not generate population total!!!***')
+
+        if isfile(baseline_pop) is False:
+            print('***!!!Could not find baseline pop file %s !!!*** ' %baseline_pop)
+        if isfile(f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif") is False:
+            print('***!!!Could not find pop new UK file %s !!!*** ' %f"/data/temp/population_new_uk_{ssp_scenario}_{year}.tif")
+
+        export.append(f"/data/outputs/population_total_uk_{ssp_scenario}_{year}.tif")
 
         print('Generated total population')
     elif total_population and fill_northern_ireland is False:
         print('Excluding data for northern ireland - method not implemented!')
 
-        pass
 
     """
     # this is where I add the base population
@@ -552,6 +536,7 @@ def house_type_sum():
     """
     Sum the base house type count with the count of new houses. Reads in baseline data for buildings and adds the data from UDM outputs.
     """
+    print('Running house type sum method')
     logger.info('Running house type sum method')
     # base data needs to be in RCM grid
     no_data_value = 99999999
@@ -664,6 +649,7 @@ def house_type_sum():
         outputs.append(join('/data', 'outputs', f'dwellings_{type}_total-12km.asc'))
         logger.info('------ ------ Written output: %s' %join('/data', 'outputs', f'dwellings_{type}_total-12km.asc'))
 
+    print('Running final two steps')
     print(outputs)
     # subtract from ni population for year and SSP the baseline value to get the new population
     subprocess.run([
@@ -677,14 +663,26 @@ def house_type_sum():
     ])
 
     # subtract from ni population for year and SSP the baseline value to get the new population
-    subprocess.run([
-        "gdal_calc.py",
-        "-B", f"/data/outputs/dwellings_total-12km.tif",
-        "-A", f"/data/outputs/population_total_uk_{ssp}_{year}-12km-sum.asc",
-        f"--outfile=/data/outputs/people_per_dwellings-12km.tif",
-        "--calc=A/B* (B>0)"
-    ])
-
+    #if isfile(f"/data/outputs/population_total_uk_{ssp}_{year}-12km-sum.asc"):
+    if isfile(f"/data/outputs/population_total_uk_{ssp}_{year}.tif"):
+        subprocess.run([
+            "gdal_calc.py",
+            "-B", f"/data/outputs/dwellings_total-12km.tif",
+            #"-A", f"/data/outputs/population_total_uk_{ssp}_{year}-12km-sum.asc",
+            "-A", f"/data/outputs/population_total_uk_{ssp}_{year}.tif",
+            f"--outfile=/data/outputs/people_per_dwellings-12km.tif",
+            "--calc=A/B* (B>0)"
+        ])
+    elif isfile(f"/data/temp/population_total_uk_{ssp}_{year}-12km-sum.asc"):
+        subprocess.run([
+            "gdal_calc.py",
+            "-B", f"/data/outputs/dwellings_total-12km.tif",
+            "-A", f"/data/temp/population_total_uk_{ssp}_{year}-12km-sum.asc",
+            f"--outfile=/data/outputs/people_per_dwellings-12km.tif",
+            "--calc=A/B* (B>0)"
+        ])
+    else:
+        print('Could not find file for total population')
     return
 
 
@@ -855,6 +853,11 @@ if rasterise_population_outputs is None or str(rasterise_population_outputs).low
 include_northern_ireland = getenv('include_northern_ireland')
 if include_northern_ireland is None or str(include_northern_ireland).lower() == 'false':
     include_northern_ireland = False
+adjust_baseline_pop = getenv('adjust_population_baseline')
+if adjust_baseline_pop is None or str(adjust_baseline_pop).lower == 'false':
+    adjust_baseline_pop = False
+else: adjust_baseline_pop == True
+
 
 lad_area_field_name = getenv('area_field_name')
 print(f'LAD area field name: {lad_area_field_name}')
@@ -893,7 +896,7 @@ print('Done all prep')
 logger.info('------Population data------')
 if calc_new_population_total:
     logger.info('Calculating the new population totals')
-    files_to_export = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland)
+    files_to_export = located_population(year=year, ssp_scenario=ssp, total_population=True, fill_northern_ireland=include_northern_ireland, adjust_baseline_pop=adjust_baseline_pop)
 
     if rasterise_population_outputs:
         logger.info('Rasterising population output')
@@ -932,4 +935,5 @@ if generate_new_dwelling_totals:
 else:
     logger.info('Skipping dwelling methods')
 
+print('Completed model')
 logger.info('Completed model')

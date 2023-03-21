@@ -47,6 +47,12 @@ spec:
         description: Include population values for Northern Ireland filling the gap from UDM which doesn't include NI data.
         default: true
         required: true
+      - name: adjust_population_baseline
+        title: Adjust baseline population
+        type: boolean
+        description: To account for potential errors in the baseline population data, adjust using the pre-calculated values
+        default: true
+        required: true
 
     dataslots:
       - name: Input data files
