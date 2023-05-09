@@ -56,6 +56,54 @@ def read_in_metadata():
     return df
 
 
+def reset_raster_values(file_path):
+    # read in base coverage raster
+    rst = rasterio.open(file_path)
+    #baseline_values = rasterio.open(join(data_path, 'inputs', 'base_house_types', f'ssp_grid_{type}_12km.tif'))
+
+    # copy raster so have raster to write to
+    rst_out = rst.read(1)
+
+    input = rst.read(1)
+    output = rst.read(1)
+
+    # iterate over raster using baseline
+    i = 0
+    while i < output.shape[0]:
+        j = 0
+        while j < output.shape[1]:
+            # get the baseline
+            val_baseline = input[i, j]
+            if val_baseline > 1000000:
+                val_baseline = -1 #nodata_value
+
+                # assign new value
+                output[i, j] = val_baseline
+
+            j += 1
+        i += 1
+
+    new_dataset = rasterio.open(
+        file_path, "w",
+        # driver = "GTiff",
+        height=output.shape[0],
+        width=output.shape[1],
+        count=1,
+        nodata=-1,
+        dtype=output.dtype,
+        crs=27700,
+        transform=rst.transform,
+        compress='lzw'
+    )
+
+
+    # write new output
+    new_dataset.write(output, 1)
+    new_dataset.close()
+
+    return
+
+
 def grid_file_to_12km_rcm(file, method='sum', output_name=None):
     """
     Take a file and re-grid to the 12Km RCM grid
@@ -121,6 +169,8 @@ def to_12km_rcm(file, method='sum', output_name=None):
     # check if input file exists
     if isfile(join(data_path, inputs_directory, input_data_directory, file)) is False:
         logger.info('---File does not exist!')
+
+    reset_raster_values(join(data_path, inputs_directory, input_data_directory, file))
 
     # re-grid to the 12km RCM grid, save as virtual raster in the temp directory
     subprocess.run(["gdalwarp",
@@ -456,7 +506,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     return export
 
 
-def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/outputs'):
+def apply_demographic_ratios(name_of_file, ssp_scenario='1', year='2050', output_path='/data/outputs'):
     """
 
     Inputs:
@@ -475,61 +525,37 @@ def apply_demographic_ratios(gdf, ssp='SSP1', year='2050', output_path='/data/ou
     # get list of input files
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
 
-    # read in input file
-    ratios = pd.read_csv(join(data_path, 'inputs', 'population_ratios', input_files[0]))#,
-                             #usecols=['ID', 'LAD19CD', 'LAD19NM', 'Age Class', 'Scenario', '2020'])
+    for file in input_files:
+        if file.split('.')[-1] == '.gpkg':
+            ratios = gpd.read_file(join(data_path, 'inputs', 'population_ratios', file))
 
-    # get the list of zones of interest
-    lads = gdf['code'].values.tolist()
+    # loop through age bands
+    age_bands = ['85', '0_64', '65_74', '75_84']
+    for age_band in age_bands:
 
-    # filter the ratios to just the zones of interest
-    ratios = ratios[ratios["LADcode"].isin(lads)]
-    print(ratios.head())
+        # rasterise to 1km raster per age band
+        year_short = year[2:4]
+        subprocess.run([
+            "gdal_rasterize",
+            "-a", f"F{year_short}_{age_band}_{ssp_scenario}",
+            "-tr", "1000", "1000",
+            "-te", "0", "5000", "656000", "1221000",
+            f"/data/inputs/population_ratios/{file}",
+            f"/data/temp/population_ratio_1km_{age_band}.tif"
+        ])
 
-    # filter the columns in the ratios to just the SSP of interest
-    ratio_columns = []
-    for col in ratios.columns:
-        if ssp in col:
-            if year in col:
-                ratio_columns.append(col)
-
-    # filter the ratios df to just the columns of interest
-    print('Ratio columns:', ratio_columns)
-    logger.info(f'Using the following data for ratios: {ratio_columns}')
-    df_cols = ratio_columns
-    df_cols.append('LADcode')
-    ratios = ratios[df_cols]
-
-    # merge gdf and ratio column
-    ratios = ratios.rename(columns={"LADcode": "code"})
-    ratios.set_index('code')
-    gdf = gdf.merge(ratios, on='code', how='inner')
-
-    # take the ratios and create new columns with ratios applied
-    gdf['0-64'] = gdf['population_total'] * gdf[f'{year}_0-64_{ssp}']
-    gdf['65-74'] = gdf['population_total'] * gdf[f'{year}_65-74_{ssp}']
-    gdf['75-84'] = gdf['population_total'] * gdf[f'{year}_75-84_{ssp}' ]
-    gdf['85'] = gdf['population_total'] * gdf[f'{year}_85_{ssp}']
-
-    # create a population density column and a per 1km column
-    gdf['0-64_density'] = gdf['0-64'] / gdf['area_km']
-    gdf['0-64_1km'] = gdf['0-64_density']# * 100
-    gdf['65-74_density'] = gdf['65-74'] / gdf['area_km']
-    gdf['65-74_1km'] = gdf['65-74_density']# * 100
-    gdf['75-84_density'] = gdf['75-84'] / gdf['area_km']
-    gdf['75-84_1km'] = gdf['75-84_density']# * 100
-    gdf['85_density'] = gdf['85'] / gdf['area_km']
-    gdf['85_1km'] = gdf['85_density']# * 100
-
-    print('Saving output with ratio breakdowns')
-
-    # save output
-    gdf.to_file(join(output_path, "population_demographics.gpkg"), layer='ssps', driver="GPKG")
-    logger.info('Written population gpkg to file - population_demographics.gpkg')
+        # user raster calc method to calc age band values
+        subprocess.run([
+            "gdal_calc.py",
+            "-A", f"/data/temp/population_ratio_1km_{age_band}.tif",
+            "-B", f"{name_of_file}",
+            f"--outfile=/data/outputs/population_total_demographic_{age_band}.tif",
+            "--calc=A+B+C+D"
+        ])
 
     logger.info('Completed apply demographic ratios method')
 
-    return gdf, join(output_path, "population_demographics.gpkg")
+    return
 
 
 def house_type_sum():
@@ -822,7 +848,7 @@ files = [f for f in listdir(join(data_path, outputs_directory)) if isfile(join(d
 for file in files:
     remove(join(data_path, outputs_directory,file))
 
-# stet up logger and log file
+# set up logger and log file
 logger = logging.getLogger('udm-heat')
 logger.setLevel(logging.INFO)
 log_file_name = 'udm-heat-%s.log' %(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
@@ -907,15 +933,16 @@ if calc_new_population_total:
     if new_population_demographic_breakdowns:
         logger.info('Creating new demographic profiles for new population')
         # create demographic breakdowns for the new populations
-        gdf, output = apply_demographic_ratios(gdf, year=year, ssp=ssp)
+        name_of_pop_total_file = f"/data/outputs/population_total_uk_{ssp}_{year}.tif"
+        apply_demographic_ratios(name_of_pop_total_file, year=year, ssp_scenario=ssp)
 
-        if rasterise_population_outputs:
-            logger.info('Rasterising demographic population breakdown')
-            # need to rasterise per demographic breakdown category
-            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='0-64_1km'), output_name='population_demographics_0-64')
-            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='65-74_1km'), output_name='population_demographics_65-74')
-            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='75-84_1km'), output_name='population_demographics_75-84')
-            grid_file_to_12km_rcm(rasterise(file=output, attribute_name='85_1km'), output_name='population_demographics_85')
+        #if rasterise_population_outputs:
+        #    logger.info('Rasterising demographic population breakdown')
+        #    # need to rasterise per demographic breakdown category
+        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='0-64_1km'), output_name='population_demographics_0-64')
+        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='65-74_1km'), output_name='population_demographics_65-74')
+        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='75-84_1km'), output_name='population_demographics_75-84')
+        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='85_1km'), output_name='population_demographics_85')
 
 else:
     logger.info('Skipping population methods')
