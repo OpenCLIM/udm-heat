@@ -532,7 +532,7 @@ def apply_demographic_ratios(name_of_file, ssp_scenario='1', year='2050', output
     # loop through age bands
     age_bands = ['85', '0_64', '65_74', '75_84']
     for age_band in age_bands:
-
+        logger.info( f"Running: /data/inputs/population_ratios/{file}")
         # rasterise to 1km raster per age band
         year_short = year[2:4]
         subprocess.run([
@@ -543,7 +543,7 @@ def apply_demographic_ratios(name_of_file, ssp_scenario='1', year='2050', output
             f"/data/inputs/population_ratios/{file}",
             f"/data/temp/population_ratio_1km_{age_band}.tif"
         ])
-
+        logger.info('Generated ratio raster')
         # user raster calc method to calc age band values
         subprocess.run([
             "gdal_calc.py",
