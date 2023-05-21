@@ -35,8 +35,8 @@ spec:
         description: Added the new dwellings to those existing in the base data
         default: true
         required: true
-      - name: rasterise_population_outputs
-        title: Rasterise population outputs
+      - name: rcm_population_outputs
+        title: Rasterise population outputs to the 12km RCM grid
         type: boolean
         description: Rasterise population outputs from geopackage to as .asc
         default: true
@@ -47,11 +47,11 @@ spec:
         description: Include population values for Northern Ireland filling the gap from UDM which doesn't include NI data.
         default: true
         required: true
-      - name: area_field_name
-        title: Zone data area attribute name - area in metres
-        description: The attribute name in the zone data which contains the area value in meters
-        type: string
-        default: 'st_areasha'
+      - name: adjust_population_baseline
+        title: Adjust baseline population
+        type: boolean
+        description: To account for potential errors in the baseline population data, adjust using the pre-calculated values
+        default: true
         required: true
 
     dataslots:
@@ -60,25 +60,38 @@ spec:
         path: inputs/layers
         required: false
         default:
-          - f428caa4-14da-4d71-8b1f-fe6bf123b08d
+          - b4b0dd3b-460b-40ef-85a1-2d1cb0d04518
       - name: Population
         description: UK SSP population csv file
         path: inputs/population
         required: false
         default:
-          - c1bc6327-41d1-4480-8560-8766eff7ad88
+          - 620e12d7-9f0c-480b-a348-cbf747a52cbc
+          - a7e1b8b7-923c-43ee-a0c3-2565571a81ae
       - name: Population ratios
         description: Population ratios for four age bands (0-64, 65-74, 75-84, 85) based on the UK SSPs per LAD, year and SSP
         path: inputs/population_ratios
         required: false
         default:
-          - 15102e42-b6a4-42dd-84d3-d7e615cd9789
+          - f10bb4f4-c4cd-47d5-aaeb-6d4fa4257d0b
+      - name: Population baseline adjustment
+        description: A raster containing population adjustment values
+        path: inputs/population_adjustment
+        required: false
+        default:
+          - 7e283881-b283-4c82-b473-0ac835b1da51
       - name: Zones
         description: A set of zones which match the SSP data, so Local Authority Areas, where the codes match those in the population and population ratios datasets
         path: inputs/zones
         required: false
         default:
           - 9433582f-22fa-420f-bdd8-c9c48ef7994a
+      - name: Baseline housing data
+        description: Baseline data for housing type counts across the UK
+        path: inputs/base_house_types
+        required: false
+        default:
+          - 21c4cd4b-7855-4efa-8e6c-41441c4c7452
 
   outputs:
     datasets:
