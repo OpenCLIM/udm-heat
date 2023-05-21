@@ -60,13 +60,13 @@ spec:
         path: inputs/layers
         required: false
         default:
-          - f428caa4-14da-4d71-8b1f-fe6bf123b08d
+          - b4b0dd3b-460b-40ef-85a1-2d1cb0d04518
       - name: Population
         description: UK SSP population csv file
         path: inputs/population
         required: false
         default:
-          - 83281ba8-3cca-4880-80d5-1658e7574286
+          - 620e12d7-9f0c-480b-a348-cbf747a52cbc
           - a7e1b8b7-923c-43ee-a0c3-2565571a81ae
       - name: Population ratios
         description: Population ratios for four age bands (0-64, 65-74, 75-84, 85) based on the UK SSPs per LAD, year and SSP
