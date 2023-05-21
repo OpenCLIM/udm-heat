@@ -11,6 +11,7 @@ import logging
 import random
 import string
 from pathlib import Path
+import zipfile
 
 
 def find_metadata_files():
@@ -169,6 +170,7 @@ def to_12km_rcm(file, method='sum', output_name=None):
     # check if input file exists
     if isfile(join(data_path, inputs_directory, input_data_directory, file)) is False:
         logger.info('---File does not exist!')
+        print('---File does not exist!')
 
     reset_raster_values(join(data_path, inputs_directory, input_data_directory, file))
 
@@ -345,6 +347,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
     # get name of population file
     input_files = [f for f in listdir(join(data_path, 'population')) if isfile(join(data_path, 'population', f))]
     file_name = None
+    print('Input files:', input_files)
 
     for file in input_files:
         file_ext = file.split('.')[-1]
@@ -392,7 +395,7 @@ def located_population(file_name=None, data_path='/data/inputs', output_path='/d
 
     # apply correction to population baseline
     if adjust_baseline_pop:
-        corrected_population = apply_correction_to_pop_baseline(pop_baseline_12km, '/data/pop_baseline_adjustment_12km.tif')
+        corrected_population = apply_correction_to_pop_baseline(pop_baseline_12km, '/data/inputs/population_adjustment/pop_baseline_adjustment_12km.tif')
 
 
     if fill_northern_ireland:
@@ -900,7 +903,19 @@ logger.info(f'LAD area field name: {lad_area_field_name}')
 ## start the processing
 # get list of input files to loop through
 files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
+
 print(f'Files to loop through: {files}')
+
+for file in files:
+    if '.zip' in file:
+        print('Need to extract zip file')
+        with zipfile.ZipFile(join(data_path, inputs_directory, input_data_directory, file), 'r') as zip_ref:
+            zip_ref.extractall(join(data_path, inputs_directory, input_data_directory))
+
+files = [f for f in listdir(join(data_path, inputs_directory, input_data_directory)) if isfile(join(data_path, inputs_directory, input_data_directory,f))]
+
+print(f'Files to loop through: {files}')
+
 logger.info('------      ------')
 logger.info(f'Got files in input data directory ({files})')
 
@@ -916,6 +931,9 @@ year = parameters_dataframe.loc['YEAR']['VALUE']
 logger.info('Read in metadata file and extracted key UDM parameter values')
 logger.info(f'----- SSP:{ssp}')
 logger.info(f'----- Year: {year}')
+print('Read in metadata file and extracted key UDM parameter values')
+print(f'----- SSP:{ssp}')
+print(f'----- Year: {year}')
 print('Done all prep')
 
 # calculate the new population
@@ -935,15 +953,6 @@ if calc_new_population_total:
         # create demographic breakdowns for the new populations
         name_of_pop_total_file = f"/data/outputs/population_total_uk_{ssp}_{year}.tif"
         apply_demographic_ratios(name_of_pop_total_file, year=year, ssp_scenario=ssp)
-
-        #if rasterise_population_outputs:
-        #    logger.info('Rasterising demographic population breakdown')
-        #    # need to rasterise per demographic breakdown category
-        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='0-64_1km'), output_name='population_demographics_0-64')
-        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='65-74_1km'), output_name='population_demographics_65-74')
-        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='75-84_1km'), output_name='population_demographics_75-84')
-        #    grid_file_to_12km_rcm(rasterise(file=output, attribute_name='85_1km'), output_name='population_demographics_85')
-
 else:
     logger.info('Skipping population methods')
 
