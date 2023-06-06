@@ -73,7 +73,7 @@ spec:
         path: inputs/population_ratios
         required: false
         default:
-          - f10bb4f4-c4cd-47d5-aaeb-6d4fa4257d0b
+          - 1f87a5da-125e-4128-9b54-23cd3670a1f7
       - name: Population baseline adjustment
         description: A raster containing population adjustment values
         path: inputs/population_adjustment
