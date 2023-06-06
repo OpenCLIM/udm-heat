@@ -1032,7 +1032,6 @@ if calc_new_population_total:
 else:
     logger.info('Skipping population methods')
 
-"""
 # calculate the total of new dwellings
 logger.info('------Dwelling data------')
 if generate_new_dwelling_totals:
@@ -1047,7 +1046,6 @@ if generate_new_dwelling_totals:
 
 else:
     logger.info('Skipping dwelling methods')
-"""
 
 ## do some tidying up
 if isfile(f'/data/outputs/population_total_uk_{ssp}_{year}.tif') is True:
