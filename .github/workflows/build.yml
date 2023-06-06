@@ -23,3 +23,5 @@ jobs:
 
       - name: Test - run everything without the pph file and demographic breakdown
         run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=False --env new_dwelling_totals=True --env include_northern_ireland=True --env rcm_population_outputs=True --env adjust_population_baseline=True -t udm-heat
+      - name: Test - run everything without the pph file
+        run: docker run -v $PWD/data:/data --env calculate_new_population=True --env demographic_breakdown=True --env new_dwelling_totals=True --env include_northern_ireland=True --env rcm_population_outputs=True --env adjust_population_baseline=True -t udm-heat
