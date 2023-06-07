@@ -600,6 +600,7 @@ def apply_demographic_ratios(name_of_file='population_total_uk', ssp_scenario='1
     print(name_of_file)
     # get list of input files
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
+    logger.info('Found the following input ratio files: %s' %(input_files))
 
     for file in input_files:
         if file.split('.')[-1] == '.tif':
@@ -624,7 +625,7 @@ def apply_demographic_ratios(name_of_file='population_total_uk', ssp_scenario='1
         if isfile(f'/data/inputs/population_ratios/demographic_ratios_1km_F{short_year}_{age_band}_{ssp_scenario}.tif') is True:
             logger.info(' ---- Found ratio layer')
         else:
-            logger.info(' ---- Could not find ratio layer')
+            logger.info(f' ---- Could not find ratio layer: /data/inputs/population_ratios/demographic_ratios_1km_F{short_year}_{age_band}_{ssp_scenario}.tif ')
 
         if isfile(f'{name_of_file}') is True:
             logger.info(' ---- Found population layer')
