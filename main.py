@@ -676,8 +676,8 @@ def house_type_sum():
         baseline_file = None
         for f in input_files:
             #if f'gb-2017-{type}' in f:
-            #if f'ssp_grid_{type}_rescount' in f:
-            if f'%{type}%' in f:
+            if f'ssp_grid_{type}_rescount' in f:
+            #if f'%{type}%' in f:
                 baseline_file = f
                 break
         if baseline_file is None:
