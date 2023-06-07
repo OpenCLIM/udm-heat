@@ -620,6 +620,17 @@ def apply_demographic_ratios(name_of_file='population_total_uk', ssp_scenario='1
         #    f"/data/temp/population_ratio_1km_{age_band}.tif"
         #])
         #logger.info('Generated ratio raster')
+        # check if input files exist
+        if isfile(f'/data/inputs/population_ratios/demographic_ratios_1km_F{short_year}_{age_band}_{ssp_scenario}.tif') is True:
+            logger.info(' ---- Found ratio layer')
+        else:
+            logger.info(' ---- Could not find ratio layer')
+
+        if isfile(f'{name_of_file}') is True:
+            logger.info(' ---- Found population layer')
+        else:
+            logger.info(' ---- Could not find population layer')
+
         # user raster calc method to calc age band values
         subprocess.run([
             "gdal_calc.py",
@@ -628,6 +639,11 @@ def apply_demographic_ratios(name_of_file='population_total_uk', ssp_scenario='1
             f"--outfile=/data/outputs/population_total_demographic_{age_band}.tif",
             "--calc=A*B"
         ])
+
+        if isfile(f"/data/outputs/population_total_demographic_{age_band}.tif") is True:
+            logger.info(' ---- Found result file')
+        else:
+            logger.info(' ---- Could not find result file')
 
     logger.info('Completed apply demographic ratios method')
 
