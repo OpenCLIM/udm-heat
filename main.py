@@ -596,36 +596,30 @@ def apply_demographic_ratios(name_of_file='population_total_uk', ssp_scenario='1
         - list of outputs
     """
     logger.info('Running apply demographic ratios method')
+    #logger.info( f"Running: /data/inputs/population_ratios/{file}")
     print('Running apply demographic ratios method')
     print(name_of_file)
     # get list of input files
     input_files = [f for f in listdir(join(data_path, 'inputs', 'population_ratios')) if isfile(join(data_path, 'inputs','population_ratios', f))]
     logger.info('Found the following input ratio files: %s' %(input_files))
 
-    for file in input_files:
-        if file.split('.')[-1] == '.tif':
-            ratios = gpd.read_file(join(data_path, 'inputs', 'population_ratios', file))
-
+    short_year = year[1:4]
+    if short_year[0] == 0:
+        short_year = year[2:4]
+    logger.info(f'Short year set as: {short_year}')
+    logger.info(f'SSP scenario: {ssp_scenario}')
+    
     # loop through age bands
     age_bands = ['85', '0_64', '65_74', '75_84']
     for age_band in age_bands:
-        logger.info( f"Running: /data/inputs/population_ratios/{file}")
+        logger.info( f"Running for age band {age_band}")
         # rasterise to 1km raster per age band
-        short_year = year[2:4]
-        #subprocess.run([
-        #    "gdal_rasterize",
-        #    "-a", f"F{year_short}_{age_band}_{ssp_scenario}",
-        #    "-tr", "1000", "1000",
-        #    "-te", "0", "5000", "656000", "1221000",
-        #    f"/data/inputs/population_ratios/{file}",
-        #    f"/data/temp/population_ratio_1km_{age_band}.tif"
-        #])
-        #logger.info('Generated ratio raster')
-        # check if input files exist
+
         if isfile(join(data_path, 'inputs', 'population_ratios', f'demographic_ratios_1km_F{short_year}_{age_band}_{ssp_scenario}.tif')) is True:
             logger.info(' ---- Found ratio layer')
         else:
-            logger.info(f' ---- Could not find ratio layer:')
+            file_name = join(data_path, 'inputs', 'population_ratios', f'demographic_ratios_1km_F{short_year}_{age_band}_{ssp_scenario}.tif')
+            logger.info(f' ---- Could not find ratio layer: {file_name}')
 
         if isfile(f'{name_of_file}') is True:
             logger.info(' ---- Found population layer')
