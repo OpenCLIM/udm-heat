@@ -1104,8 +1104,16 @@ if isfile(f'/data/outputs/population_total_demographic_75_84.asc') is True:
 if isfile(f'/data/outputs/population_total_demographic_85.asc') is True:
     rename(f'/data/outputs/population_total_demographic_85.asc', f'/data/outputs/population_demographics_85.asc')
 
-
-
+if isfile(f'/data/outputs/population_total_uk_SSP5_2100-12km-sum.tif') is True:
+    rename(f'/data/outputs/population_total_uk_SSP5_2100-12km-sum.tif', '/data/outputs/population_total-12km.tif')
+if isfile(f'/data/outputs/population_total_demographic_0_64.tif') is True:
+    rename(f'/data/outputs/population_total_demographic_0_64.tif', f'/data/outputs/population_demographics_0-64.tif')
+if isfile(f'/data/outputs/population_total_demographic_65_74.tif') is True:
+    rename(f'/data/outputs/population_total_demographic_65_74.tif', f'/data/outputs/population_demographics_65-74.tif')
+if isfile(f'/data/outputs/population_total_demographic_75_84.tif') is True:
+    rename(f'/data/outputs/population_total_demographic_75_84.tif', f'/data/outputs/population_demographics_75-84.tif')
+if isfile(f'/data/outputs/population_total_demographic_85.tif') is True:
+    rename(f'/data/outputs/population_total_demographic_85.tif', f'/data/outputs/population_demographics_85.tif')
 
 
 
