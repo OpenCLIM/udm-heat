@@ -8,6 +8,8 @@ metadata:
   source_code: https://github.com/OpenCLIM/udm-heat
   description: >
     Convert UDM gridded 1km outputs to 12km RCM grid with SUM method.
+  contact_point_name: Craig Robson
+  contact_point_email: craig.robson1@ncl.ac.uk
 spec:
   inputs:
     parameters:
