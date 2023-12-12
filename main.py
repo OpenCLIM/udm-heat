@@ -1,7 +1,7 @@
 # import required libraries
 import subprocess
 from os.path import isfile, join, isdir
-from os import listdir, walk, remove, getenv, mkdir, rename
+from os import listdir, walk, remove, getenv, mkdir, rename, fsdecode, fsencode
 from rasterstats import zonal_stats
 import geopandas as gpd
 import pandas as pd
@@ -56,6 +56,28 @@ def read_in_metadata():
 
     return df
 
+
+def convert_tif_to_asc():
+    """
+    convert any .tif files to .asc
+    """
+
+    directory = fsencode(join(data_path, outputs_directory))
+
+    for file in listdir(directory):
+        filename = fsdecode(file)
+        if filename.endswith(".tif"):
+            #print('found a tif')
+            #print(filename)
+
+            subprocess.run(
+                ["gdal_translate",
+                "-of", "AAIGrid",
+                "-a_nodata", str(nodata_value),
+                join(data_path, outputs_directory, filename),
+                join(data_path, outputs_directory, f"{filename.split('.')[0]}.asc")
+                ])
+    return
 
 def reset_raster_values(file_path):
     # read in base coverage raster
@@ -1065,6 +1087,10 @@ if isfile(f'/data/outputs/population_total_uk_{ssp}_{year}.tif') is True:
 if isfile(f'/data/outputs/population_total_uk_{ssp}_{year}_final.tif') is True:
     # rename file
     rename(f'/data/outputs/population_total_uk_{ssp}_{year}_final.tif', f'/data/outputs/population_total_uk_{ssp}_{year}.tif')
+
+
+# convert all any .tif to .asc in the output folder
+convert_tif_to_asc()
 
 
 print('Completed model')
