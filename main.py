@@ -1092,6 +1092,25 @@ if isfile(f'/data/outputs/population_total_uk_{ssp}_{year}_final.tif') is True:
 # convert all any .tif to .asc in the output folder
 convert_tif_to_asc()
 
+# rename files
+if isfile(f'/data/outputs/population_total_uk_SSP5_2100-12km-sum.asc') is True:
+    rename(f'/data/outputs/population_total_uk_SSP5_2100-12km-sum.asc', '/data/outputs/population_total-12km.asc')
+if isfile(f'/data/outputs/population_total_demographic_0_64.asc') is True:
+    rename(f'/data/outputs/population_total_demographic_0_64.asc', f'/data/outputs/population_demographics_0-64.asc')
+if isfile(f'/data/outputs/population_total_demographic_65_74.asc') is True:
+    rename(f'/data/outputs/population_total_demographic_65_74.asc', f'/data/outputs/population_demographics_65-74.asc')
+if isfile(f'/data/outputs/population_total_demographic_75_84.asc') is True:
+    rename(f'/data/outputs/population_total_demographic_75_84.asc', f'/data/outputs/population_demographics_75-84.asc')
+if isfile(f'/data/outputs/population_total_demographic_85.asc') is True:
+    rename(f'/data/outputs/population_total_demographic_85.asc', f'/data/outputs/population_demographics_85.asc')
+
+
+
+
+
+
+
+
 
 print('Completed model')
 logger.info('Completed model')
